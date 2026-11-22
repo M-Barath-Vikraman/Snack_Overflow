@@ -4,9 +4,11 @@ import {
   SnackCategoryType,
   SnackStatusType,
   PaginationData,
+  WsConnectionStatus,
 } from '../types';
 import snackService from '../services/snackService';
 import { useAuth } from '../context/AuthContext';
+import { useWebSocket } from '../context/WebSocketContext';
 import SnackCard from '../components/SnackCard';
 import SnackDetailModal from '../components/SnackDetailModal';
 import AddEditSnackModal from '../components/AddEditSnackModal';
@@ -19,6 +21,7 @@ interface InventoryPageProps {
 
 export const InventoryPage: React.FC<InventoryPageProps> = () => {
   const { isAdmin } = useAuth();
+  const { status: wsStatus, subscribe } = useWebSocket();
 
   // Inventory state
   const [snacks, setSnacks] = useState<Snack[]>([]);
@@ -49,8 +52,12 @@ export const InventoryPage: React.FC<InventoryPageProps> = () => {
   const [deletingSnack, setDeletingSnack] = useState<Snack | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
 
-  // Search debounce ref
+  // In-flight voting state to prevent duplicate rapid clicks
+  const [votingIds, setVotingIds] = useState<Record<string, boolean>>({});
+
+  // Search debounce ref & WebSocket status tracker ref
   const searchTimeoutRef = useRef<number | null>(null);
+  const prevWsStatusRef = useRef<WsConnectionStatus>(wsStatus);
 
   const fetchSnacks = useCallback(async () => {
     setLoading(true);
@@ -84,6 +91,170 @@ export const InventoryPage: React.FC<InventoryPageProps> = () => {
     fetchSnacks();
   }, [fetchSnacks]);
 
+  // Real-time synchronization via WebSockets
+  useEffect(() => {
+    // 1. Stock Consumed Event
+    const unsubConsumed = subscribe('SNACK_CONSUMED', (event) => {
+      const payload = event.payload;
+      if (!payload || !payload.snackId) return;
+
+      setSnacks((prev) =>
+        prev.map((s) =>
+          s.id === payload.snackId
+            ? {
+                ...s,
+                quantity: payload.quantity,
+                status: payload.status,
+                voteCount: payload.voteCount !== undefined ? payload.voteCount : s.voteCount,
+                updatedAt: payload.updatedAt || s.updatedAt,
+              }
+            : s
+        )
+      );
+
+      setSelectedSnack((prev) =>
+        prev && prev.id === payload.snackId
+          ? {
+              ...prev,
+              quantity: payload.quantity,
+              status: payload.status,
+              voteCount: payload.voteCount !== undefined ? payload.voteCount : prev.voteCount,
+              updatedAt: payload.updatedAt || prev.updatedAt,
+            }
+          : prev
+      );
+    });
+
+    // 2. Stock Restocked Event
+    const unsubRestocked = subscribe('SNACK_RESTOCKED', (event) => {
+      const payload = event.payload;
+      if (!payload || !payload.snackId) return;
+
+      setSnacks((prev) =>
+        prev.map((s) =>
+          s.id === payload.snackId
+            ? {
+                ...s,
+                quantity: payload.quantity,
+                status: payload.status,
+                voteCount: payload.voteCount !== undefined ? payload.voteCount : s.voteCount,
+                updatedAt: payload.updatedAt || s.updatedAt,
+              }
+            : s
+        )
+      );
+
+      setSelectedSnack((prev) =>
+        prev && prev.id === payload.snackId
+          ? {
+              ...prev,
+              quantity: payload.quantity,
+              status: payload.status,
+              voteCount: payload.voteCount !== undefined ? payload.voteCount : prev.voteCount,
+              updatedAt: payload.updatedAt || prev.updatedAt,
+            }
+          : prev
+      );
+    });
+
+    // 3. Snack Voted Event
+    const unsubVoted = subscribe('SNACK_VOTED', (event) => {
+      const payload = event.payload;
+      if (!payload || !payload.snackId) return;
+
+      setSnacks((prev) =>
+        prev.map((s) =>
+          s.id === payload.snackId ? { ...s, voteCount: payload.totalVotes } : s
+        )
+      );
+
+      setSelectedSnack((prev) =>
+        prev && prev.id === payload.snackId ? { ...prev, voteCount: payload.totalVotes } : prev
+      );
+    });
+
+    // 4. Snack Unvoted Event
+    const unsubUnvoted = subscribe('SNACK_UNVOTED', (event) => {
+      const payload = event.payload;
+      if (!payload || !payload.snackId) return;
+
+      setSnacks((prev) =>
+        prev.map((s) =>
+          s.id === payload.snackId ? { ...s, voteCount: payload.totalVotes } : s
+        )
+      );
+
+      setSelectedSnack((prev) =>
+        prev && prev.id === payload.snackId ? { ...prev, voteCount: payload.totalVotes } : prev
+      );
+    });
+
+    // 5. Snack Created Event
+    const unsubCreated = subscribe('SNACK_CREATED', () => {
+      fetchSnacks();
+    });
+
+    // 6. Snack Updated Event
+    const unsubUpdated = subscribe('SNACK_UPDATED', (event) => {
+      const payload = event.payload;
+      if (!payload || !payload.snack) return;
+      const updated = payload.snack;
+
+      setSnacks((prev) =>
+        prev.map((s) =>
+          s.id === updated.id
+            ? {
+                ...s,
+                name: updated.name,
+                category: updated.category,
+                quantity: updated.quantity,
+                lowStockThreshold: updated.lowStockThreshold,
+                status: updated.status,
+                voteCount: updated.voteCount !== undefined ? updated.voteCount : s.voteCount,
+                updatedAt: updated.updatedAt,
+              }
+            : s
+        )
+      );
+
+      setSelectedSnack((prev) =>
+        prev && prev.id === updated.id ? { ...prev, ...updated } : prev
+      );
+    });
+
+    // 7. Snack Deleted Event
+    const unsubDeleted = subscribe('SNACK_DELETED', (event) => {
+      const snackId = event.snackId || event.payload?.snackId;
+      if (!snackId) return;
+
+      setSnacks((prev) => prev.filter((s) => s.id !== snackId));
+      setSelectedSnack((prev) => (prev && prev.id === snackId ? null : prev));
+      setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+    });
+
+    return () => {
+      unsubConsumed();
+      unsubRestocked();
+      unsubVoted();
+      unsubUnvoted();
+      unsubCreated();
+      unsubUpdated();
+      unsubDeleted();
+    };
+  }, [subscribe, fetchSnacks]);
+
+  // Reconnection reconciliation: when socket restores from disconnected/reconnecting to connected
+  useEffect(() => {
+    if (
+      wsStatus === 'connected' &&
+      (prevWsStatusRef.current === 'reconnecting' || prevWsStatusRef.current === 'disconnected')
+    ) {
+      // Catch up on any state changes that happened while disconnected
+      fetchSnacks();
+    }
+    prevWsStatusRef.current = wsStatus;
+  }, [wsStatus, fetchSnacks]);
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (searchTimeoutRef.current) {
@@ -91,7 +262,7 @@ export const InventoryPage: React.FC<InventoryPageProps> = () => {
     }
     searchTimeoutRef.current = window.setTimeout(() => {
       setSearchTerm(value);
-      setPage(1); // Reset to page 1 on new search
+      setPage(1);
     }, 300);
   };
 
@@ -123,40 +294,136 @@ export const InventoryPage: React.FC<InventoryPageProps> = () => {
     setPage(1);
   };
 
-  // Quick Consume from card
+  /**
+   * Optimistic Consumption with Automatic Rollback on Failure.
+   * 1. Decrement local UI state immediately.
+   * 2. Recompute derived status.
+   * 3. Send REST API call with Idempotency-Key.
+   * 4. Reconcile on success; rollback and alert on failure.
+   */
   const handleQuickConsume = async (e: React.MouseEvent, snack: Snack) => {
     e.stopPropagation();
+    if (snack.quantity <= 0) return;
+
+    // Snapshot previous state for rollback
+    const previousSnacks = [...snacks];
+    const targetSnack = snacks.find((s) => s.id === snack.id);
+    if (!targetSnack) return;
+
+    const newQuantity = Math.max(0, targetSnack.quantity - 1);
+    const newStatus: SnackStatusType =
+      newQuantity <= 0
+        ? 'OUT_OF_STOCK'
+        : newQuantity <= targetSnack.lowStockThreshold
+        ? 'LOW_STOCK'
+        : 'IN_STOCK';
+
+    // 1. Optimistic update
+    setSnacks((prev) =>
+      prev.map((s) =>
+        s.id === snack.id ? { ...s, quantity: newQuantity, status: newStatus } : s
+      )
+    );
+
     try {
+      // 2. Dispatch API call (includes Idempotency-Key header)
       const res = await snackService.consumeSnack(snack.id, 1);
-      if (res.success) {
-        fetchSnacks();
-      } else {
-        alert(
-          res.error?.code === 'INSUFFICIENT_STOCK' || res.message?.includes('last packet')
-            ? 'Someone beat you to the last packet!'
-            : res.message || 'Consumption failed.'
+      if (res.success && res.data) {
+        // 3. Reconcile with authoritative server response
+        const serverSnack = res.data.snack;
+        setSnacks((prev) =>
+          prev.map((s) =>
+            s.id === snack.id
+              ? {
+                  ...s,
+                  quantity: serverSnack.quantity,
+                  status: serverSnack.status,
+                  voteCount: serverSnack.voteCount ?? s.voteCount,
+                  updatedAt: serverSnack.updatedAt,
+                }
+              : s
+          )
         );
+      } else {
+        // 4. Rollback on failure
+        setSnacks(previousSnacks);
+        const errMsg =
+          res.error?.code === 'INSUFFICIENT_STOCK' ||
+          res.message?.includes('last packet') ||
+          res.message?.includes('insufficient')
+            ? 'Someone beat you to the last packet!'
+            : res.message || 'Consumption failed.';
+        alert(errMsg);
       }
     } catch (err: any) {
-      alert(err.message || 'Network error.');
+      // Rollback on network failure
+      setSnacks(previousSnacks);
+      alert(err.message || 'Network error during consumption.');
     }
   };
 
-  // Vote / Unvote from card
+  /**
+   * Optimistic Voting with Automatic Rollback on Failure.
+   * 1. Prevent rapid duplicate clicks.
+   * 2. Toggle vote status and count immediately.
+   * 3. Send REST API call.
+   * 4. Reconcile on success; rollback on failure.
+   */
   const handleVoteToggle = async (e: React.MouseEvent, snackId: string) => {
     e.stopPropagation();
-    const snack = snacks.find((s) => s.id === snackId);
-    if (!snack) return;
+    if (votingIds[snackId]) return;
+
+    const targetSnack = snacks.find((s) => s.id === snackId);
+    if (!targetSnack) return;
+
+    // Snapshot previous state
+    const previousSnacks = [...snacks];
+    const prevVoted = !!targetSnack.hasUserVoted;
+    const prevCount = targetSnack.voteCount || 0;
+    const nextVoted = !prevVoted;
+    const nextCount = Math.max(0, prevCount + (prevVoted ? -1 : 1));
+
+    // Mark in-flight
+    setVotingIds((prev) => ({ ...prev, [snackId]: true }));
+
+    // 1. Optimistic update
+    setSnacks((prev) =>
+      prev.map((s) =>
+        s.id === snackId ? { ...s, hasUserVoted: nextVoted, voteCount: nextCount } : s
+      )
+    );
 
     try {
-      if (snack.hasUserVoted) {
-        await snackService.unvoteSnack(snackId);
+      // 2. Dispatch REST API call
+      const res = prevVoted
+        ? await snackService.unvoteSnack(snackId)
+        : await snackService.voteSnack(snackId);
+
+      if (res.success && res.data) {
+        // 3. Reconcile with authoritative server response
+        const serverTotalVotes = res.data.totalVotes;
+        const serverUserVoted = res.data.userVoted;
+        setSnacks((prev) =>
+          prev.map((s) =>
+            s.id === snackId
+              ? { ...s, voteCount: serverTotalVotes, hasUserVoted: serverUserVoted }
+              : s
+          )
+        );
       } else {
-        await snackService.voteSnack(snackId);
+        // 4. Rollback
+        setSnacks(previousSnacks);
+        alert(res.message || 'Voting operation failed.');
       }
-      fetchSnacks();
     } catch (err: any) {
-      console.error('Voting error:', err);
+      setSnacks(previousSnacks);
+      alert(err.message || 'Network error during vote update.');
+    } finally {
+      setVotingIds((prev) => {
+        const next = { ...prev };
+        delete next[snackId];
+        return next;
+      });
     }
   };
 

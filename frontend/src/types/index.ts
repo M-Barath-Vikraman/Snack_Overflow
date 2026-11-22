@@ -93,3 +93,14 @@ export interface HealthStatus {
     error?: string;
   };
 }
+
+export type WsConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+
+export interface WebSocketEvent<T = any> {
+  id: string;
+  type: string;
+  snackId: string;
+  timestamp: string;
+  payload: T;
+}
+

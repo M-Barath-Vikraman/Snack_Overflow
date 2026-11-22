@@ -136,7 +136,8 @@ npm test
 ```
 Executes:
 1. `testRuntimeConfig.ts`: 5 tests verifying strict `window.__APP_CONFIG__` enforcement, missing config errors, and empty URL rejection.
-2. `testFrontendIntegration.ts`: End-to-end verification covering auth flow, persistence, logout, dashboard summary, filtering, sorting, pagination, consumption, voting, admin operations, and `ON DELETE RESTRICT` error handling.
+2. `testFrontendIntegration.ts`: 47 tests covering auth flow, persistence, logout, dashboard summary, filtering, sorting, pagination, consumption, voting, admin operations, and `ON DELETE RESTRICT` error handling.
+3. `testWebSocket.ts`: 21 tests verifying runtime WebSocket URL retrieval, duplicate listener prevention, unmount cleanup, optimistic consume & 409 rollback, optimistic voting & rollback, offline REST mode, and exponential backoff calculations.
 
 ### 6.2 Production Build
 From `frontend/`:
@@ -144,3 +145,37 @@ From `frontend/`:
 npm run build
 ```
 Executes `tsc -b && vite build` and generates optimized bundles in `frontend/dist/`.
+
+---
+
+## 7. Real-Time WebSockets & Optimistic UI (Phase 5)
+
+### 7.1 WebSocket Hook & Context
+- Centralized `WebSocketProvider` (`frontend/src/context/WebSocketContext.tsx`) manages a single active connection per browser tab.
+- Automatically connects to `getWsUrl()` using the signed JWT token on user login.
+- Subscriptions are managed using a Set registry that guarantees zero duplicate listeners and automatically unregisters callbacks when components unmount.
+
+### 7.2 Connection Status Indicator
+The top header and sidebar incorporate a real-time `ConnectionStatusBadge`:
+- 🟢 **Live Sync**: Connected and listening for updates.
+- 🟡 **Reconnecting...**: Reconnecting using exponential backoff (1s, 2s, 4s, 8s, max 10s).
+- ⚪ **Offline (REST)**: Offline mode. Full REST API functionality continues seamlessly.
+
+### 7.3 Optimistic Stock Consumption & Rollback
+When a user clicks "Grab One" or consumes stock:
+1. **Immediate Local Decrement**: The quantity in the React state immediately decreases by the consumption amount, and derived stock status updates (e.g. `IN_STOCK` $\to$ `LOW_STOCK` or `OUT_OF_STOCK`).
+2. **REST Dispatch**: The request is sent to `POST /api/snacks/:id/consume` with a unique `Idempotency-Key`.
+3. **Reconciliation**: On success (`200 OK`), state is reconciled with authoritative PostgreSQL server data.
+4. **Automatic Rollback**: If the server rejects the request (e.g. `409 Conflict` with `INSUFFICIENT_STOCK`), the local state rolls back to its exact pre-optimistic snapshot, and an alert is displayed:
+   `"Someone beat you to the last packet!"`
+
+### 7.4 Optimistic Voting & Rollback
+When a user clicks the heart button:
+1. **In-Flight Lock**: Rapid duplicate clicks are blocked via `votingIds` state.
+2. **Immediate Toggle**: `hasUserVoted` flips immediately, and `voteCount` increments/decrements.
+3. **REST Dispatch**: Call is made to `POST` or `DELETE /api/snacks/:id/vote`.
+4. **Reconciliation / Rollback**: On success, `totalVotes` aligns with the server response; on network or API failure, state rolls back to the previous snapshot.
+
+### 7.5 Reconnection State Reconciliation
+When the WebSocket connection is restored after a network outage, `InventoryPage` and `DashboardPage` automatically execute background REST calls (`fetchSnacks()`, `fetchDashboardData()`) to catch up on any inventory changes or votes that occurred while disconnected.
+

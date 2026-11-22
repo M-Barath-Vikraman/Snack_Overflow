@@ -25,8 +25,8 @@ A modern, full-stack snack management system designed for team offices and colla
 - [x] **Phase 1 — Project Foundation & Initial Migration** (Completed & Verified)
 - [x] **Phase 2 — Backend Core APIs** (Completed & Verified with 60 automated tests)
 - [x] **Phase 3 — Authentication & User Management** (Completed & Verified with 48 automated tests)
-- [x] **Phase 4 — Frontend Dashboard & UI** (Completed & Verified with 30 frontend tests)
-- [ ] **Phase 5 — Real-time WebSockets & Optimistic UI** (Pending Approval)
+- [x] **Phase 4 — Frontend Dashboard & UI** (Completed & Verified with 52 automated tests)
+- [x] **Phase 5 — Real-time WebSockets & Optimistic UI** (Completed & Verified with 49 automated tests)
 - [ ] **Phase 6 — Docker & CI/CD Deployment** (Pending)
 
 ---
@@ -57,7 +57,10 @@ A modern, full-stack snack management system designed for team offices and colla
 | `DELETE` | `/api/snacks/:id/vote` | **Authenticated** | Remove vote for a snack |
 
 See [docs/api.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/api.md) for full request/response contracts and query parameters.
+See [docs/realtime.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/realtime.md) for the WebSocket architecture, event catalog, and reconnection strategy.
+See [docs/frontend.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/frontend.md) for optimistic UI updates, rollbacks, and connection indicators.
 See [docs/concurrency.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/concurrency.md) for the atomic concurrency and idempotency specifications.
+See [docs/security.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/security.md) for JWT token policies and WebSocket handshake verification.
 
 ---
 

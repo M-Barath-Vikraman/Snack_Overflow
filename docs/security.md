@@ -100,3 +100,21 @@ Tokens encode a minimal, verified identity payload:
   }
   ```
 - **Database Safety**: Raw SQL commands use parameterized queries (`$1`, `$2`, ...) to eliminate SQL injection risks.
+
+---
+
+## 6. Real-Time WebSocket Security (Phase 5)
+
+### 6.1 Handshake JWT Verification
+- WebSocket connections require a valid JWT token presented either via the query string (`?token=<token>`) or the `Sec-WebSocket-Protocol` header.
+- Connections with missing, malformed, tampered, or expired tokens are immediately rejected with WebSocket code `4401` (Unauthorized) before any data frames can be transmitted or received.
+
+### 6.2 Server-Bound Identity
+- Once authenticated, the server maps the client's socket directly to the decoded identity (`userId`, `email`, `role`).
+- The server never accepts or trusts identity claims in client message payloads.
+- Role-based authorization rules apply equally to REST and real-time operations.
+
+### 6.3 Sensitive Field Masking
+- WebSocket event broadcasts (`SNACK_CONSUMED`, `SNACK_RESTOCKED`, `SNACK_VOTED`, etc.) only broadcast sanitized entity identifiers and stock metrics.
+- Passwords, bcrypt hashes, JWT secrets, database connection strings, and user credentials are never included in broadcast payloads.
+

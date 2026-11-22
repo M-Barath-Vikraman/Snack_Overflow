@@ -384,3 +384,28 @@ Removes the authenticated user's vote.
 ```
 - **Errors**:
   - `404 VOTE_NOT_FOUND`: `"User has not voted for this snack"`.
+
+---
+
+## 4. Real-Time Integration & Optimistic Reconciliation (Phase 5)
+
+### 4.1 Post-Commit WebSocket Broadcasting
+All state-mutating REST API calls trigger asynchronous real-time WebSocket broadcasts strictly **after** their underlying database transaction has successfully committed:
+
+| Endpoint | Action | Triggered WebSocket Event |
+|---|---|---|
+| `POST /api/snacks` | Admin creates snack | `SNACK_CREATED` |
+| `PATCH /api/snacks/:id` | Admin updates snack | `SNACK_UPDATED` |
+| `DELETE /api/snacks/:id` | Admin deletes snack | `SNACK_DELETED` |
+| `POST /api/snacks/:id/consume` | Member consumes stock | `SNACK_CONSUMED` |
+| `POST /api/snacks/:id/restock` | Admin restocks inventory | `SNACK_RESTOCKED` |
+| `POST /api/snacks/:id/vote` | User votes for snack | `SNACK_VOTED` |
+| `DELETE /api/snacks/:id/vote` | User removes vote | `SNACK_UNVOTED` |
+
+### 4.2 Optimistic UI Reconciliation Flow
+1. **Local Optimistic Mutation**: Client immediately decrements inventory or toggles votes locally.
+2. **REST Execution**: The client dispatches the standard REST request (with `Idempotency-Key` on consume).
+3. **Success State Reconciliation**: The client reconciles local state with the exact server response payload.
+4. **Failure Rollback**: If the REST call fails (e.g., `409 INSUFFICIENT_STOCK`), the client rolls back to its pre-request snapshot and alerts the user (`"Someone beat you to the last packet!"`).
+5. **Reconnection Catch-up**: After temporary WebSocket disconnection, clients re-fetch `/api/snacks` and `/api/snacks/summary` to catch up on missed events.
+

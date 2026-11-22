@@ -1,5 +1,6 @@
 import React, { useState, ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
+import ConnectionStatusBadge from './ConnectionStatusBadge';
 
 interface LayoutProps {
   children: ReactNode;
@@ -39,20 +40,25 @@ export const Layout: React.FC<LayoutProps> = ({
 
       {/* Sidebar Navigation */}
       <aside className={`sidebar ${mobileMenuOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <div className="logo">
-            <span>🍿</span>
-            <div>Snack Overflow</div>
+        <div className="sidebar-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div className="logo">
+              <span>🍿</span>
+              <div>Snack Overflow</div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ display: mobileMenuOpen ? 'block' : 'none' }}
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              &times;
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            style={{ display: mobileMenuOpen ? 'block' : 'none' }}
-            onClick={() => setMobileMenuOpen(false)}
-            aria-label="Close menu"
-          >
-            &times;
-          </button>
+          <div style={{ marginTop: '0.25rem' }}>
+            <ConnectionStatusBadge />
+          </div>
         </div>
 
         <nav className="sidebar-nav">
@@ -129,9 +135,12 @@ export const Layout: React.FC<LayoutProps> = ({
           <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span>🍿</span> Snack Overflow
           </div>
-          <span className={`role-badge ${isAdmin ? 'admin' : 'member'}`}>
-            {user?.role}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <ConnectionStatusBadge />
+            <span className={`role-badge ${isAdmin ? 'admin' : 'member'}`}>
+              {user?.role}
+            </span>
+          </div>
         </header>
 
         {children}

@@ -28,6 +28,12 @@ async function main() {
     process.exit(code2);
   }
 
+  console.log('\n>>> 3. RUNNING FRONTEND WEBSOCKET & OPTIMISTIC UI TESTS...\n');
+  const code3 = await runScript('testWebSocket.ts');
+  if (code3 !== 0) {
+    process.exit(code3);
+  }
+
   console.log('\n================================================================');
   console.log('       ALL FRONTEND TESTS COMPLETED SUCCESSFULLY!                ');
   console.log('================================================================');

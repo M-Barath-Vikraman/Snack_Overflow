@@ -40,11 +40,14 @@ export class VoteService {
 
     const totalVotes = await prisma.vote.count({ where: { snackId } });
 
-    // Broadcast vote update
-    wsServer.broadcast(WS_EVENTS.VOTE_UPDATED, {
+    // Broadcast vote update post-commit
+    wsServer.broadcast({
+      type: WS_EVENTS.SNACK_VOTED,
       snackId,
-      totalVotes,
-      timestamp: new Date().toISOString(),
+      payload: {
+        snackId,
+        totalVotes,
+      },
     });
 
     return {
@@ -90,11 +93,14 @@ export class VoteService {
 
     const totalVotes = await prisma.vote.count({ where: { snackId } });
 
-    // Broadcast vote update
-    wsServer.broadcast(WS_EVENTS.VOTE_UPDATED, {
+    // Broadcast unvote update post-commit
+    wsServer.broadcast({
+      type: WS_EVENTS.SNACK_UNVOTED,
       snackId,
-      totalVotes,
-      timestamp: new Date().toISOString(),
+      payload: {
+        snackId,
+        totalVotes,
+      },
     });
 
     return {

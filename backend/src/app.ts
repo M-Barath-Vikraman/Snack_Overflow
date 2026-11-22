@@ -44,8 +44,12 @@ app.use(errorHandler);
 export const server = http.createServer(app);
 wsServer.init(server);
 
-// Start server if executed directly
-if (process.env.NODE_ENV !== 'test') {
+// Start server if executed directly and not in test environment
+const isTestExecution =
+  process.env.NODE_ENV === 'test' ||
+  process.argv.some((arg) => arg.includes('test') || arg.includes('TestSuite'));
+
+if (!isTestExecution) {
   server.listen(config.port, () => {
     logger.info(`Snack Overflow backend running on port ${config.port} [${config.nodeEnv}]`);
     logger.info(`Health check available at http://localhost:${config.port}/health`);

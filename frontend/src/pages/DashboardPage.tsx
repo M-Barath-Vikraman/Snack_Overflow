@@ -1,6 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { DashboardSummaryData, Snack } from '../types';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { DashboardSummaryData, Snack, WsConnectionStatus } from '../types';
 import snackService from '../services/snackService';
+import { useWebSocket } from '../context/WebSocketContext';
 import CategoryBadge from '../components/CategoryBadge';
 import StatusBadge from '../components/StatusBadge';
 
@@ -12,10 +13,14 @@ interface DashboardPageProps {
 export const DashboardPage: React.FC<DashboardPageProps> = ({
   onNavigateToInventory,
 }) => {
+  const { status: wsStatus, subscribe } = useWebSocket();
   const [summary, setSummary] = useState<DashboardSummaryData | null>(null);
   const [recentSnacks, setRecentSnacks] = useState<Snack[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const prevWsStatusRef = useRef<WsConnectionStatus>(wsStatus);
+  const debounceTimerRef = useRef<number | null>(null);
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
@@ -46,6 +51,41 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  // Debounced refresh when real-time updates arrive
+  const triggerDebouncedRefresh = useCallback(() => {
+    if (debounceTimerRef.current) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = window.setTimeout(() => {
+      fetchDashboardData();
+    }, 200);
+  }, [fetchDashboardData]);
+
+  // Real-time synchronization
+  useEffect(() => {
+    const unsubWildcard = subscribe('*', () => {
+      triggerDebouncedRefresh();
+    });
+
+    return () => {
+      unsubWildcard();
+      if (debounceTimerRef.current) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [subscribe, triggerDebouncedRefresh]);
+
+  // Reconnection reconciliation: refresh data upon reconnecting to catch up on missed events
+  useEffect(() => {
+    if (
+      wsStatus === 'connected' &&
+      (prevWsStatusRef.current === 'reconnecting' || prevWsStatusRef.current === 'disconnected')
+    ) {
+      fetchDashboardData();
+    }
+    prevWsStatusRef.current = wsStatus;
+  }, [wsStatus, fetchDashboardData]);
 
   if (loading && !summary) {
     return (

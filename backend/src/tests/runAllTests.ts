@@ -7,6 +7,7 @@ function runScript(scriptPath: string): Promise<number> {
       stdio: 'inherit',
       shell: true,
       cwd: path.resolve(__dirname, '../../'),
+      env: { ...process.env, NODE_ENV: 'test' },
     });
     child.on('close', (code) => {
       resolve(code ?? 0);
@@ -27,6 +28,13 @@ async function main() {
   if (apiCode !== 0) {
     console.error('\n❌ Core API regression test suite failed with exit code', apiCode);
     process.exit(apiCode);
+  }
+
+  console.log('\n>>> RUNNING PHASE 5 WEBSOCKET & REALTIME TEST SUITE...\n');
+  const wsCode = await runScript('src/tests/websocketTestSuite.ts');
+  if (wsCode !== 0) {
+    console.error('\n❌ WebSocket & Realtime test suite failed with exit code', wsCode);
+    process.exit(wsCode);
   }
 
   console.log('\n================================================================');

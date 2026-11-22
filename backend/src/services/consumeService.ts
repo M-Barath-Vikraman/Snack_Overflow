@@ -227,15 +227,20 @@ export class ConsumeService {
     );
 
     // 7. Post-Commit WebSocket Broadcast
-    wsServer.broadcast(WS_EVENTS.STOCK_UPDATED, {
+    wsServer.broadcast({
+      type: WS_EVENTS.SNACK_CONSUMED,
       snackId: transactionResult.snack.id,
-      name: transactionResult.snack.name,
-      quantity: transactionResult.snack.quantity,
-      lowStockThreshold: transactionResult.snack.lowStockThreshold,
-      status: transactionResult.snack.status,
-      action: 'CONSUMED',
-      amount,
-      timestamp: new Date().toISOString(),
+      payload: {
+        snackId: transactionResult.snack.id,
+        name: transactionResult.snack.name,
+        quantity: transactionResult.snack.quantity,
+        lowStockThreshold: transactionResult.snack.lowStockThreshold,
+        status: transactionResult.snack.status,
+        action: 'CONSUMED',
+        amount,
+        voteCount: transactionResult.snack.voteCount,
+        updatedAt: transactionResult.snack.updatedAt,
+      },
     });
 
     return transactionResult;

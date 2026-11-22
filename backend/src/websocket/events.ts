@@ -1,21 +1,51 @@
-import { ActivityActionType, SnackStatusType } from '../types';
+import { ActivityActionType, SnackCategoryType, SnackStatusType } from '../types';
 
 export const WS_EVENTS = {
-  // Client to Server
-  SUBSCRIBE: 'SUBSCRIBE',
-  UNSUBSCRIBE: 'UNSUBSCRIBE',
-  PING: 'PING',
+  // Stock events
+  SNACK_CREATED: 'SNACK_CREATED',
+  SNACK_UPDATED: 'SNACK_UPDATED',
+  SNACK_DELETED: 'SNACK_DELETED',
+  SNACK_CONSUMED: 'SNACK_CONSUMED',
+  SNACK_RESTOCKED: 'SNACK_RESTOCKED',
 
-  // Server to Client
+  // Voting events
+  SNACK_VOTED: 'SNACK_VOTED',
+  SNACK_UNVOTED: 'SNACK_UNVOTED',
+
+  // Lifecycle & heartbeat events
+  PING: 'PING',
   PONG: 'PONG',
-  STOCK_UPDATED: 'STOCK_UPDATED',
-  VOTE_UPDATED: 'VOTE_UPDATED',
   ERROR: 'ERROR',
+  AUTH_SUCCESS: 'AUTH_SUCCESS',
+
+  // Legacy compatibility aliases
+  STOCK_UPDATED: 'SNACK_CONSUMED',
+  VOTE_UPDATED: 'SNACK_VOTED',
 } as const;
 
-export type WsEventType = typeof WS_EVENTS[keyof typeof WS_EVENTS];
+export type WsEventType = (typeof WS_EVENTS)[keyof typeof WS_EVENTS];
 
-export interface StockUpdatePayload {
+export interface WebSocketEventEnvelope<T = any> {
+  id: string;
+  type: WsEventType;
+  snackId: string;
+  timestamp: string;
+  payload: T;
+}
+
+export interface SnackPayload {
+  id: string;
+  name: string;
+  category: SnackCategoryType;
+  quantity: number;
+  lowStockThreshold: number;
+  status: SnackStatusType;
+  voteCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StockEventPayload {
   snackId: string;
   name: string;
   quantity: number;
@@ -23,17 +53,21 @@ export interface StockUpdatePayload {
   status: SnackStatusType;
   action: ActivityActionType;
   amount: number;
-  timestamp: string;
+  voteCount?: number;
+  updatedAt?: string;
 }
 
-export interface VoteUpdatePayload {
+export interface VoteEventPayload {
   snackId: string;
   totalVotes: number;
-  timestamp: string;
+}
+
+export interface DeleteEventPayload {
+  snackId: string;
 }
 
 export interface WebSocketMessage<T = any> {
-  type: WsEventType;
+  type: WsEventType | string;
   payload?: T;
-  timestamp: string;
+  timestamp?: string;
 }

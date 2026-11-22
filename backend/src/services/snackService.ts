@@ -223,17 +223,29 @@ export class SnackService {
       },
     });
 
-    return {
+    const status = deriveSnackStatus(created.quantity, created.lowStockThreshold);
+    const snackResult: SnackWithDetails = {
       id: created.id,
       name: created.name,
       category: created.category as SnackCategoryType,
       quantity: created.quantity,
       lowStockThreshold: created.lowStockThreshold,
-      status: deriveSnackStatus(created.quantity, created.lowStockThreshold),
+      status,
       voteCount: 0,
       createdAt: created.createdAt.toISOString(),
       updatedAt: created.updatedAt.toISOString(),
     };
+
+    // Broadcast snack creation post-commit
+    wsServer.broadcast({
+      type: WS_EVENTS.SNACK_CREATED,
+      snackId: created.id,
+      payload: {
+        snack: snackResult,
+      },
+    });
+
+    return snackResult;
   }
 
   /**
@@ -275,22 +287,7 @@ export class SnackService {
     });
 
     const status = deriveSnackStatus(updated.quantity, updated.lowStockThreshold);
-
-    // Broadcast stock updates if quantity changed
-    if (data.quantity !== undefined && data.quantity !== existing.quantity) {
-      wsServer.broadcast(WS_EVENTS.STOCK_UPDATED, {
-        snackId: updated.id,
-        name: updated.name,
-        quantity: updated.quantity,
-        lowStockThreshold: updated.lowStockThreshold,
-        status,
-        action: 'RESTOCKED',
-        amount: Math.abs(updated.quantity - existing.quantity),
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    return {
+    const result: SnackWithDetails = {
       id: updated.id,
       name: updated.name,
       category: updated.category as SnackCategoryType,
@@ -301,6 +298,17 @@ export class SnackService {
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
+
+    // Broadcast snack update post-commit
+    wsServer.broadcast({
+      type: WS_EVENTS.SNACK_UPDATED,
+      snackId: updated.id,
+      payload: {
+        snack: result,
+      },
+    });
+
+    return result;
   }
 
   /**
@@ -316,6 +324,15 @@ export class SnackService {
     try {
       await prisma.snack.delete({
         where: { id },
+      });
+
+      // Broadcast snack deletion post-commit
+      wsServer.broadcast({
+        type: WS_EVENTS.SNACK_DELETED,
+        snackId: id,
+        payload: {
+          snackId: id,
+        },
       });
     } catch (err: any) {
       if (
@@ -392,15 +409,20 @@ export class SnackService {
     const status = deriveSnackStatus(result.quantity, result.lowStockThreshold);
 
     // Broadcast stock update after transaction commits
-    wsServer.broadcast(WS_EVENTS.STOCK_UPDATED, {
+    wsServer.broadcast({
+      type: WS_EVENTS.SNACK_RESTOCKED,
       snackId: result.id,
-      name: result.name,
-      quantity: result.quantity,
-      lowStockThreshold: result.lowStockThreshold,
-      status,
-      action: 'RESTOCKED',
-      amount,
-      timestamp: new Date().toISOString(),
+      payload: {
+        snackId: result.id,
+        name: result.name,
+        quantity: result.quantity,
+        lowStockThreshold: result.lowStockThreshold,
+        status,
+        action: 'RESTOCKED',
+        amount,
+        voteCount: result.voteCount,
+        updatedAt: result.updatedAt.toISOString(),
+      },
     });
 
     return {
