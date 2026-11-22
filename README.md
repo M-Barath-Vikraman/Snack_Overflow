@@ -23,15 +23,23 @@ A modern, full-stack snack management system designed for team offices and colla
 ## Project Status
 
 - [x] **Phase 1 — Project Foundation & Initial Migration** (Completed & Verified)
-- [x] **Phase 2 — Backend Core APIs** (Completed & Verified with 60 automated tests + 5 frontend runtime tests)
-- [ ] **Phase 3 — Authentication & User Management** (Pending Approval)
-- [ ] **Phase 4 — Frontend Dashboard & UI** (Pending)
+- [x] **Phase 2 — Backend Core APIs** (Completed & Verified with 60 automated tests)
+- [x] **Phase 3 — Authentication & User Management** (Completed & Verified with 48 automated tests)
+- [ ] **Phase 4 — Frontend Dashboard & UI** (Pending Approval)
 - [ ] **Phase 5 — Real-time WebSockets & Optimistic UI** (Pending)
 - [ ] **Phase 6 — Docker & CI/CD Deployment** (Pending)
 
 ---
 
-## API Endpoints Implemented in Phase 2
+## API Endpoints Implemented
+
+### Authentication (`/api/auth`)
+| Method | Endpoint | Access | Description |
+|---|---|:---:|---|
+| `POST` | `/api/auth/register` | Public | Register new user (default `MEMBER`, password hashed with bcrypt) |
+| `POST` | `/api/auth/login` | Public | Authenticate credentials and return signed JWT |
+
+### Snacks Inventory (`/api/snacks`)
 
 | Method | Endpoint | Access | Description |
 |---|---|:---:|---|

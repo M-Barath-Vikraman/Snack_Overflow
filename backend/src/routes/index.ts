@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import healthRoutes from './healthRoutes';
+import authRoutes from './authRoutes';
 import snackRoutes from './snackRoutes';
 
 const router = Router();
 
 // Health routes
 router.use('/health', healthRoutes);
+
+// Auth routes
+router.use('/auth', authRoutes);
 
 // Snack routes
 router.use('/snacks', snackRoutes);

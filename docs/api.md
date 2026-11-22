@@ -40,7 +40,85 @@ All responses adhere to a consistent standard JSON structure.
 
 ## 3. Endpoints
 
-### 3.1 `GET /api/snacks`
+### 3.1 `POST /api/auth/register`
+Registers a new user account. Assigns the `MEMBER` role by default. Attempting to specify elevated roles (e.g. `ADMIN`) is actively rejected.
+
+- **Access**: Public
+- **Request Body**:
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "password": "Password123!"
+}
+```
+- **Validation Rules**:
+  - `name`: String, 1–100 characters.
+  - `email`: Valid email format, max 255 characters (normalized to lowercase).
+  - `password`: String, 8–100 characters (hashed with bcrypt, work factor 10).
+- **Response (`201 CREATED`)**:
+```json
+{
+  "success": true,
+  "message": "User registered successfully",
+  "data": {
+    "user": {
+      "id": "c1f7a0b5-70fa-40f6-95df-50f0ecbb5479",
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "role": "MEMBER",
+      "createdAt": "2026-11-22T06:00:00.000Z",
+      "updatedAt": "2026-11-22T06:00:00.000Z"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  },
+  "timestamp": "2026-11-22T06:00:00.000Z"
+}
+```
+- **Errors**:
+  - `400 VALIDATION_ERROR`: Missing or malformed fields, password < 8 characters.
+  - `403 ROLE_ESCALATION_FORBIDDEN`: Attempting to pass `role: 'ADMIN'`.
+  - `409 EMAIL_ALREADY_EXISTS`: An account with this email already exists.
+
+---
+
+### 3.2 `POST /api/auth/login`
+Authenticates user credentials and issues a signed JWT token.
+
+- **Access**: Public
+- **Request Body**:
+```json
+{
+  "email": "jane@example.com",
+  "password": "Password123!"
+}
+```
+- **Response (`200 OK`)**:
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "data": {
+    "user": {
+      "id": "c1f7a0b5-70fa-40f6-95df-50f0ecbb5479",
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "role": "MEMBER",
+      "createdAt": "2026-11-22T06:00:00.000Z",
+      "updatedAt": "2026-11-22T06:00:00.000Z"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  },
+  "timestamp": "2026-11-22T06:00:00.000Z"
+}
+```
+- **Errors**:
+  - `400 VALIDATION_ERROR`: Missing email or password.
+  - `401 INVALID_CREDENTIALS`: `"Invalid email or password"` (identical error message for incorrect password or non-existent email to prevent user enumeration).
+
+---
+
+### 3.3 `GET /api/snacks`
 Lists snacks with server-side search, filtering, pagination, and sorting. Filtering and pagination are executed entirely in PostgreSQL.
 
 - **Access**: Public / Optional Authentication (if authenticated, `hasUserVoted` is populated).

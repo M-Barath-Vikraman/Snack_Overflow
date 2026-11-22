@@ -11,8 +11,8 @@ import { prisma } from '../config/database';
 import { generateToken } from '../utils/jwt';
 import { hashPassword } from '../utils/password';
 
-// Ensure safety timeout
-const TEST_TIMEOUT_MS = 120000;
+// Ensure safety timeout (generous for remote WAN database round trips)
+const TEST_TIMEOUT_MS = 240000;
 const testTimer = setTimeout(() => {
   console.error('\nTest suite exceeded timeout threshold. Terminating.');
   process.exit(1);

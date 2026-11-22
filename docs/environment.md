@@ -31,6 +31,9 @@ DATABASE_URL="PASTE_RAILWAY_PUBLIC_DATABASE_URL_HERE"
 # Secret key for JWT signing and verification (HMAC SHA-256)
 JWT_SECRET="REPLACE_WITH_A_RANDOM_SECRET"
 
+# JWT token expiration window (e.g. '7d', '24h', '1h')
+JWT_EXPIRES_IN="7d"
+
 # Node environment: 'development', 'production', or 'test'
 NODE_ENV="development"
 
