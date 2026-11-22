@@ -7,6 +7,7 @@
     "dev": "tsx watch src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
+    "test": "tsx src/tests/apiTestSuite.ts",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate"
   },

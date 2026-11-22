@@ -24,3 +24,22 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     sendError(res, 'INVALID_TOKEN', 'Invalid authentication token', 401);
   }
 }
+
+export function optionalAuthenticate(req: Request, _res: Response, next: NextFunction): void {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  try {
+    const payload = verifyToken(token);
+    req.user = payload;
+  } catch {
+    // Continue without user context if token is missing or invalid on public route
+  }
+
+  next();
+}

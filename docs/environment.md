@@ -66,10 +66,13 @@ window.__APP_CONFIG__ = {
 };
 ```
 
-### Why Runtime Configuration?
-1. **No Rebuilds**: Deploying to staging or production does not require rebuilding static JavaScript bundles.
-2. **Dynamic Overrides**: In Docker/Kubernetes/Railway, an initialization script can generate `public/config.js` from runtime container environment variables.
-3. **Security**: Only public API endpoints are included. Never inject database strings, passwords, or private keys into frontend configuration.
+### Why Strict Runtime Configuration?
+1. **Single Source of Truth**: `public/config.js` is the sole source of truth for `API_BASE_URL` and `WS_URL`.
+2. **Zero Build-Time Fallbacks**: To prevent silent fallback to `localhost:3000` or stale environment URLs in staging/production, build-time variables (`import.meta.env.VITE_API_BASE_URL`) and hardcoded fallback strings have been completely removed.
+3. **Fail-Fast Error Handling**: If `window.__APP_CONFIG__` or its required fields (`API_BASE_URL`, `WS_URL`) are missing or empty, `frontend/src/config/env.ts` immediately throws a descriptive configuration error (`Missing or invalid API_BASE_URL in window.__APP_CONFIG__...`).
+4. **Clean Error UI**: `App.tsx` catches configuration errors at the root and renders a clear diagnostic screen indicating that configuration failed to load, preventing failed network requests or silent breaks.
+5. **No Rebuilds**: Deploying to staging or production does not require rebuilding static JavaScript bundles.
+6. **Security**: Only public API endpoints are included. Never inject database strings, passwords, or private keys into frontend configuration.
 
 ---
 

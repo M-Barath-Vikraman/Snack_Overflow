@@ -8,8 +8,23 @@ export const App: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
+  let activeApiUrl = '';
+  let configError: string | null = null;
+
+  try {
+    activeApiUrl = getApiBaseUrl();
+  } catch (err: any) {
+    configError = err.message;
+  }
+
   useEffect(() => {
     async function fetchHealth() {
+      if (configError) {
+        setLoading(false);
+        setError(configError);
+        return;
+      }
+
       try {
         setLoading(true);
         // Uses the centralized API client foundation
@@ -28,7 +43,7 @@ export const App: React.FC = () => {
     }
 
     fetchHealth();
-  }, []);
+  }, [configError]);
 
   return (
     <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', margin: '2rem auto', maxWidth: '800px', padding: '0 1rem', color: '#1e293b' }}>
@@ -37,7 +52,7 @@ export const App: React.FC = () => {
           🍿 Snack Overflow
         </h1>
         <p style={{ color: '#64748b', margin: 0 }}>
-          Phase 1: Project Initialization Complete
+          Phase 2: Backend Core APIs Completed
         </p>
       </header>
 
@@ -48,9 +63,13 @@ export const App: React.FC = () => {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', rowGap: '0.5rem', fontSize: '0.95rem' }}>
             <strong>Active API Base URL:</strong>
-            <code>{getApiBaseUrl()}</code>
+            {configError ? (
+              <span style={{ color: '#dc2626', fontWeight: 600 }}>{configError}</span>
+            ) : (
+              <code>{activeApiUrl}</code>
+            )}
             <strong>Config Mode:</strong>
-            <span>Runtime Window Object (overridable without rebuild)</span>
+            <span>Runtime Window Object (public/config.js is source of truth)</span>
           </div>
         </section>
 
@@ -77,7 +96,7 @@ export const App: React.FC = () => {
               <span>{health.environment}</span>
               <strong>Database:</strong>
               <span>
-                {health.database.status} {health.database.configured ? '(Configured)' : '(Pending Railway URL)'}
+                {health.database.status} {health.database.configured ? '(Connected to Railway)' : '(Unconfigured)'}
               </span>
               <strong>Uptime:</strong>
               <span>{health.uptimeSeconds}s</span>
@@ -87,7 +106,7 @@ export const App: React.FC = () => {
       </main>
 
       <footer style={{ marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.875rem' }}>
-        Snack Overflow &copy; 2026 &bull; Ready for Database Configuration &amp; Phase 2
+        Snack Overflow &copy; 2026 &bull; Ready for Phase 3
       </footer>
     </div>
   );

@@ -9,8 +9,9 @@ A modern, full-stack snack management system designed for team offices and colla
 | **Frontend** | React 18, Vite, TypeScript |
 | **Backend** | Node.js, Express, TypeScript |
 | **Database** | PostgreSQL (hosted on Railway) |
-| **ORM** | Prisma |
+| **ORM** | Prisma 5.22.0 |
 | **Authentication** | JWT (jsonwebtoken) + bcrypt |
+| **Validation** | Zod |
 | **Real-time** | WebSockets (`ws`) |
 | **Containerization (Future)** | Docker |
 | **Container Registry (Future)** | GitHub Container Registry (GHCR) |
@@ -19,151 +20,55 @@ A modern, full-stack snack management system designed for team offices and colla
 
 ---
 
-## Project Structure
+## Project Status
 
-```text
-Snack_Overflow/
-├── frontend/
-│   ├── public/
-│   │   ├── config.js              # Runtime configuration (overridable without rebuild)
-│   │   └── vite.svg
-│   ├── src/
-│   │   ├── assets/
-│   │   ├── components/
-│   │   ├── config/
-│   │   │   └── env.ts             # Runtime environment loader
-│   │   ├── hooks/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   │   └── apiClient.ts       # Centralized Fetch API client foundation
-│   │   ├── types/
-│   │   │   └── index.ts           # Shared TypeScript interfaces
-│   │   ├── utils/
-│   │   ├── App.tsx                # Base application component with health monitor
-│   │   └── main.tsx               # Entry point
-│   ├── index.html
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── tsconfig.node.json
-│   ├── vite.config.ts
-│   └── .env.example
-│
-├── backend/
-│   ├── prisma/
-│   │   └── schema.prisma          # Database schema (PostgreSQL)
-│   ├── src/
-│   │   ├── config/
-│   │   │   ├── database.ts        # Prisma client singleton
-│   │   │   └── env.ts             # Centralized environment config & validation
-│   │   ├── controllers/
-│   │   │   └── healthController.ts# Health check controller
-│   │   ├── middleware/
-│   │   │   ├── authMiddleware.ts  # JWT authentication middleware
-│   │   │   ├── errorMiddleware.ts # Centralized error handler
-│   │   │   ├── loggerMiddleware.ts# HTTP request logging middleware
-│   │   │   ├── roleMiddleware.ts  # Role-based access control (ADMIN/MEMBER)
-│   │   │   └── validateMiddleware.ts # Zod request validation middleware
-│   │   ├── routes/
-│   │   │   ├── healthRoutes.ts    # Health routes
-│   │   │   └── index.ts           # Central API router
-│   │   ├── services/
-│   │   │   └── healthService.ts   # System & database health service
-│   │   ├── types/
-│   │   │   ├── express.d.ts       # Express Request augmentation (user context)
-│   │   │   └── index.ts           # Domain types & status derivation
-│   │   ├── utils/
-│   │   │   ├── apiResponse.ts     # Standardized JSON response utilities
-│   │   │   ├── jwt.ts             # JWT signing and verification
-│   │   │   ├── logger.ts          # Structured logger utility
-│   │   │   └── password.ts        # Bcrypt hashing & comparison
-│   │   ├── websocket/
-│   │   │   ├── events.ts          # Event types for stock & vote updates
-│   │   │   └── server.ts          # WebSocket server initialization & manager
-│   │   └── app.ts                 # Express application & server entry point
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── .env                       # Local environment file (with placeholders)
-│   └── .env.example               # Example environment template
-│
-├── docs/
-│   ├── architecture.md            # System architecture & design decisions
-│   ├── database.md                # Schema, relations, constraints & migrations
-│   └── environment.md             # Environment variables & Railway setup guide
-│
-├── .gitignore                     # Git ignore rules (secrets protected)
-└── README.md
-```
+- [x] **Phase 1 — Project Foundation & Initial Migration** (Completed & Verified)
+- [x] **Phase 2 — Backend Core APIs** (Completed & Verified with 60 automated tests + 5 frontend runtime tests)
+- [ ] **Phase 3 — Authentication & User Management** (Pending Approval)
+- [ ] **Phase 4 — Frontend Dashboard & UI** (Pending)
+- [ ] **Phase 5 — Real-time WebSockets & Optimistic UI** (Pending)
+- [ ] **Phase 6 — Docker & CI/CD Deployment** (Pending)
 
 ---
 
-## Installation & Setup
+## API Endpoints Implemented in Phase 2
 
-### Prerequisites
-- Node.js (v18+ or v22 LTS recommended)
-- npm (v9+ or v11+)
-- A Railway PostgreSQL database instance
+| Method | Endpoint | Access | Description |
+|---|---|:---:|---|
+| `GET` | `/health` | Public | System & database connectivity health check |
+| `GET` | `/api/health` | Public | Standard API health check |
+| `GET` | `/api/snacks` | Public / Optional Auth | Paginated, filtered, sorted snack inventory (PostgreSQL-level) |
+| `GET` | `/api/snacks/summary` | Public | Dashboard inventory totals and Snack of the Week |
+| `GET` | `/api/snacks/:id` | Public / Optional Auth | Single snack details, derived status, and vote status |
+| `POST` | `/api/snacks` | **Admin Only** | Create a new snack item |
+| `PATCH` | `/api/snacks/:id` | **Admin Only** | Update permitted snack fields |
+| `DELETE` | `/api/snacks/:id` | **Admin Only** | Delete snack (restricted if historical activity exists) |
+| `POST` | `/api/snacks/:id/consume` | **Authenticated** | Atomic stock consumption with `Idempotency-Key` support |
+| `POST` | `/api/snacks/:id/restock` | **Admin Only** | Atomic inventory restocking |
+| `POST` | `/api/snacks/:id/vote` | **Authenticated** | Vote for a snack (one vote per user) |
+| `DELETE` | `/api/snacks/:id/vote` | **Authenticated** | Remove vote for a snack |
 
-### 1. Backend Setup
+See [docs/api.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/api.md) for full request/response contracts and query parameters.
+See [docs/concurrency.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/concurrency.md) for the atomic concurrency and idempotency specifications.
 
+---
+
+## Testing & Verification
+
+Run the automated backend test suite:
 ```bash
 cd backend
-npm install
+npm test
 ```
 
-Configure `backend/.env`:
-Open `backend/.env` and replace the placeholder with your Railway public connection string:
-```env
-DATABASE_URL="postgresql://postgres:PASSWORD@ROUNDHOUSE.proxy.rlwy.net:PORT/railway"
-JWT_SECRET="generate-a-strong-secret-key"
-NODE_ENV="development"
-PORT=3000
-FRONTEND_URL="http://localhost:5173"
-```
-
-Validate Prisma schema (offline check without DB connection):
-```bash
-npm run prisma:validate
-```
-
-Start backend development server:
-```bash
-npm run dev
-```
-The server will run on `http://localhost:3000`. Direct health check is available at `http://localhost:3000/health`.
-
-### 2. Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-The Vite development server will start on `http://localhost:5173`.
-
----
-
-## Current Status (Phase 1 Completed)
-
-### Implemented:
-- [x] Full directory structure for frontend, backend, and documentation.
-- [x] Frontend React + Vite + TypeScript application with runtime configuration support (`public/config.js`).
-- [x] Centralized frontend API client (`apiClient.ts`).
-- [x] Backend Express + TypeScript server with modular routes, controllers, services, and middlewares.
-- [x] Centralized environment variable management and validation.
-- [x] Centralized error handling and standardized API responses.
-- [x] Structured request logging and system/database health check endpoints.
-- [x] JWT utilities (sign/verify) and bcrypt password hashing/comparison.
-- [x] Authentication & Role-based authorization middleware (`ADMIN` / `MEMBER`).
-- [x] WebSocket server foundation and event payload definitions for stock and vote updates.
-- [x] Complete Prisma schema defining `User`, `Snack`, `Vote`, `Activity`, and `IdempotencyKey` models.
-- [x] Database protection strategy for negative stock and dynamic status derivation logic.
-- [x] Documentation suite covering architecture, database, and environments.
-
-### Pending (Phase 2 & beyond):
-- [ ] Manual database URL insertion and migration execution.
-- [ ] Snack CRUD endpoints.
-- [ ] Consume and Restock business logic with negative stock prevention & Idempotency-Key handling.
-- [ ] Voting endpoints.
-- [ ] Real-time WebSocket broadcasting for stock and vote updates.
-- [ ] Complete frontend dashboard UI and user authentication flows.
-- [ ] Docker containerization, GHCR registry publishing, and Railway deployment.
+### Verified Test Coverage (55 passing assertions):
+1. **Authorization & RBAC**: Admin-only route protection, member route access, unauthenticated request rejection.
+2. **Input Validation**: Zod schema rejection on missing/invalid body, query, and path parameters.
+3. **Snack CRUD**: Creation, single retrieval, editing, and name uniqueness enforcement.
+4. **PostgreSQL Filtering & Pagination**: Search (`ILIKE`), category filtering, derived status filtering (`IN_STOCK`, `LOW_STOCK`), and pagination metadata.
+5. **Atomic Concurrency**: 10 simultaneous consumption requests for 3 items $\rightarrow$ exactly 3 succeed, 7 fail with 409 (`"Someone beat you to the last packet!"`), zero negative stock, exactly 3 Activity records created.
+6. **Restocking**: Atomic increment and Activity audit record creation.
+7. **Referential Integrity**: Deletion of snacks with linked Activity records prevented via `ON DELETE RESTRICT`.
+8. **Voting & Unvoting**: Single vote per user enforced by composite unique constraint `Vote(userId, snackId)`, duplicate vote rejection, and vote count tracking.
+9. **Idempotency**: Replaying requests with identical `Idempotency-Key` returns original cached response with `X-Idempotent-Replay: true` without double-decrementing stock; key reuse with different parameters is rejected.
+10. **Dashboard Summary**: Accurate category counts and deterministic Snack of the Week calculation.

@@ -8,23 +8,59 @@ declare global {
 }
 
 /**
- * Retrieves the API Base URL at runtime.
- * Prioritizes window.__APP_CONFIG__.API_BASE_URL (runtime config from /config.js)
- * Falls back to Vite build-time env VITE_API_BASE_URL or default local development URL.
+ * Retrieves the API Base URL strictly from window.__APP_CONFIG__ at runtime.
+ * Throws a descriptive configuration error if missing or invalid.
+ * Does NOT rely on build-time environment variables or localhost fallbacks.
  */
 export function getApiBaseUrl(): string {
-  if (typeof window !== 'undefined' && window.__APP_CONFIG__?.API_BASE_URL) {
-    return window.__APP_CONFIG__.API_BASE_URL;
+  if (typeof window === 'undefined') {
+    throw new Error('Window context is unavailable. Runtime API configuration requires a browser environment.');
   }
-  return (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:3000/api';
+
+  const runtimeConfig = window.__APP_CONFIG__;
+  if (!runtimeConfig) {
+    throw new Error(
+      'Missing runtime configuration: "window.__APP_CONFIG__" is undefined. ' +
+      'Please ensure /config.js is properly loaded before application initialization.'
+    );
+  }
+
+  const apiUrl = runtimeConfig.API_BASE_URL;
+  if (!apiUrl || typeof apiUrl !== 'string' || apiUrl.trim() === '') {
+    throw new Error(
+      'Invalid runtime API configuration: "API_BASE_URL" is missing or empty in window.__APP_CONFIG__. ' +
+      'Please ensure public/config.js defines a valid API endpoint.'
+    );
+  }
+
+  return apiUrl.trim();
 }
 
 /**
- * Retrieves the WebSocket URL at runtime.
+ * Retrieves the WebSocket URL strictly from window.__APP_CONFIG__ at runtime.
+ * Throws a descriptive configuration error if missing or invalid.
+ * Does NOT rely on build-time environment variables or localhost fallbacks.
  */
 export function getWsUrl(): string {
-  if (typeof window !== 'undefined' && window.__APP_CONFIG__?.WS_URL) {
-    return window.__APP_CONFIG__.WS_URL;
+  if (typeof window === 'undefined') {
+    throw new Error('Window context is unavailable. Runtime WebSocket configuration requires a browser environment.');
   }
-  return (import.meta.env.VITE_WS_URL as string) || 'ws://localhost:3000';
+
+  const runtimeConfig = window.__APP_CONFIG__;
+  if (!runtimeConfig) {
+    throw new Error(
+      'Missing runtime configuration: "window.__APP_CONFIG__" is undefined. ' +
+      'Please ensure /config.js is properly loaded before application initialization.'
+    );
+  }
+
+  const wsUrl = runtimeConfig.WS_URL;
+  if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '') {
+    throw new Error(
+      'Invalid runtime WebSocket configuration: "WS_URL" is missing or empty in window.__APP_CONFIG__. ' +
+      'Please ensure public/config.js defines a valid WebSocket endpoint.'
+    );
+  }
+
+  return wsUrl.trim();
 }
