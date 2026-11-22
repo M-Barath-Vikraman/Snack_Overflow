@@ -96,6 +96,44 @@ export interface HealthStatus {
 
 export type WsConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 
+export interface ActivityUser {
+  id: string;
+  name: string;
+  email: string;
+  role: RoleType;
+}
+
+export interface ActivitySnack {
+  id: string;
+  name: string;
+  category: SnackCategoryType;
+}
+
+export interface ActivityRecord {
+  id: string;
+  userId: string;
+  snackId: string;
+  action: ActivityActionType;
+  amount: number;
+  createdAt: string;
+  user: ActivityUser;
+  snack: ActivitySnack;
+}
+
+export interface ActivitiesListData {
+  activities: ActivityRecord[];
+  pagination: PaginationData;
+}
+
+export interface ActivityFilterParams {
+  page?: number;
+  limit?: number;
+  action?: ActivityActionType;
+  search?: string;
+  sortBy?: 'createdAt' | 'amount';
+  sortOrder?: 'asc' | 'desc';
+}
+
 export interface WebSocketEvent<T = any> {
   id: string;
   type: string;

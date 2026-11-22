@@ -2,10 +2,12 @@ import React, { useState, ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 import ConnectionStatusBadge from './ConnectionStatusBadge';
 
+export type AppPage = 'dashboard' | 'inventory' | 'activity';
+
 interface LayoutProps {
   children: ReactNode;
-  currentPage: 'dashboard' | 'inventory';
-  onNavigate: (page: 'dashboard' | 'inventory') => void;
+  currentPage: AppPage;
+  onNavigate: (page: AppPage) => void;
   onOpenAddSnack?: () => void;
 }
 
@@ -18,7 +20,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const { user, isAdmin, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
-  const handleNavClick = (page: 'dashboard' | 'inventory') => {
+  const handleNavClick = (page: AppPage) => {
     onNavigate(page);
     setMobileMenuOpen(false);
   };
@@ -79,6 +81,17 @@ export const Layout: React.FC<LayoutProps> = ({
             <span>🍪</span>
             <span>Snack Inventory</span>
           </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              className={`nav-link ${currentPage === 'activity' ? 'active' : ''}`}
+              onClick={() => handleNavClick('activity')}
+            >
+              <span>📜</span>
+              <span>Activity History</span>
+            </button>
+          )}
 
           {isAdmin && onOpenAddSnack && (
             <div style={{ marginTop: '1.5rem', padding: '0 0.25rem' }}>

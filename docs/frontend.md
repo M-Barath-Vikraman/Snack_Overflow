@@ -58,7 +58,8 @@ frontend/
 │   │   ├── LoginPage.tsx      # Email/password authentication
 │   │   ├── RegisterPage.tsx   # Account creation (strictly MEMBER role)
 │   │   ├── DashboardPage.tsx  # Metrics cards & Snack of the Week
-│   │   └── InventoryPage.tsx  # Search, category/status filters, sorting & server pagination
+│   │   ├── InventoryPage.tsx  # Search, category/status filters, sorting & server pagination
+│   │   └── ActivityPage.tsx   # Admin-only audit log with real-time updates, filters, search & pagination
 │   ├── styles/
 │   │   └── main.css           # Clean SaaS CSS styling with responsive media queries
 │   ├── types/
@@ -108,6 +109,25 @@ frontend/
   - *Vote*: Heart toggle button to cast or remove votes.
   - *Card Click*: Opens the comprehensive `SnackDetailModal`.
 
+### 4.4 Admin Activity History (`ActivityPage.tsx` — Phase 6)
+- Connected to `GET /api/activities`.
+- Strictly accessible to users with the `ADMIN` role. Hidden from navigation for `MEMBER` users and protected at the route level in `App.tsx`.
+- **Audit Table**:
+  - Displays timestamp formatted to local date and time.
+  - Displays user profile (Name and Email).
+  - Displays action badge (`😋 Consumed` in red/amber, `📦 Restocked` in green).
+  - Displays snack name with associated category badge.
+  - Displays net amount (`-X` for consumed, `+X` for restocked).
+- **Filtering & Search**:
+  - Action filter: `All Actions`, `Consumed`, `Restocked`.
+  - Search input: 300ms debounced search matching user name, user email, or snack name.
+  - Sorting: `Newest First`, `Oldest First`, `Highest Amount`, `Lowest Amount`.
+- **Server-Side Pagination**: Full page navigation with Previous/Next controls and page indicators.
+- **Real-Time Synchronization**:
+  - Subscribed to `SNACK_CONSUMED` and `SNACK_RESTOCKED` WebSocket events.
+  - Automatically triggers a debounced refresh (250ms) to update activity logs live without page reload.
+  - Features reconnection reconciliation: automatically synchronizes on WebSocket reconnect.
+
 ---
 
 ## 5. Member vs. Admin Role Differences
@@ -122,6 +142,7 @@ frontend/
 | Edit Snack Details | ❌ (Hidden) | ✅ |
 | Restock Inventory | ❌ (Hidden) | ✅ |
 | Delete Snack Item | ❌ (Hidden) | ✅ |
+| View Admin Activity History | ❌ (Hidden) | ✅ |
 
 *Note*: In addition to UI role adaptations, backend authorization remains authoritative. Attempting to bypass the UI results in an HTTP 403 `FORBIDDEN` error.
 
@@ -138,6 +159,7 @@ Executes:
 1. `testRuntimeConfig.ts`: 5 tests verifying strict `window.__APP_CONFIG__` enforcement, missing config errors, and empty URL rejection.
 2. `testFrontendIntegration.ts`: 47 tests covering auth flow, persistence, logout, dashboard summary, filtering, sorting, pagination, consumption, voting, admin operations, and `ON DELETE RESTRICT` error handling.
 3. `testWebSocket.ts`: 21 tests verifying runtime WebSocket URL retrieval, duplicate listener prevention, unmount cleanup, optimistic consume & 409 rollback, optimistic voting & rollback, offline REST mode, and exponential backoff calculations.
+4. `testActivity.ts`: 86 tests verifying admin activity access, member role rejection, query filters (action, search, sort, pagination), sanitized relations, and real-time reconciliation.
 
 ### 6.2 Production Build
 From `frontend/`:

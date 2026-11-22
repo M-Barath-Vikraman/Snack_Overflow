@@ -6,7 +6,9 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import InventoryPage from './pages/InventoryPage';
+import ActivityPage from './pages/ActivityPage';
 import AddEditSnackModal from './components/AddEditSnackModal';
+import { AppPage } from './components/Layout';
 
 export const App: React.FC = () => {
   // 1. Strict Runtime Configuration Check
@@ -75,7 +77,7 @@ export const App: React.FC = () => {
   // 2. Authentication State Handling
   const { isAuthenticated, isLoading, isAdmin } = useAuth();
   const [authView, setAuthView] = useState<'login' | 'register'>('login');
-  const [currentPage, setCurrentPage] = useState<'dashboard' | 'inventory'>('dashboard');
+  const [currentPage, setCurrentPage] = useState<AppPage>('dashboard');
 
   // Global Add Snack Modal state (opened from Sidebar or elsewhere)
   const [isAddSnackModalOpen, setIsAddSnackModalOpen] = useState<boolean>(false);
@@ -117,10 +119,18 @@ export const App: React.FC = () => {
       onNavigate={setCurrentPage}
       onOpenAddSnack={isAdmin ? () => setIsAddSnackModalOpen(true) : undefined}
     >
-      {currentPage === 'dashboard' ? (
+      {currentPage === 'dashboard' && (
         <DashboardPage onNavigateToInventory={() => setCurrentPage('inventory')} />
-      ) : (
+      )}
+      {currentPage === 'inventory' && (
         <InventoryPage key={inventoryRefreshKey} />
+      )}
+      {currentPage === 'activity' && (
+        isAdmin ? (
+          <ActivityPage />
+        ) : (
+          <DashboardPage onNavigateToInventory={() => setCurrentPage('inventory')} />
+        )
       )}
 
       {/* Admin Add Snack Modal from Sidebar Action */}

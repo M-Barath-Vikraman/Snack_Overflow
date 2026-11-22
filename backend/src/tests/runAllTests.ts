@@ -37,6 +37,13 @@ async function main() {
     process.exit(wsCode);
   }
 
+  console.log('\n>>> RUNNING PHASE 6 ADMIN ACTIVITY HISTORY TEST SUITE...\n');
+  const actCode = await runScript('src/tests/activityTestSuite.ts');
+  if (actCode !== 0) {
+    console.error('\n❌ Admin Activity History test suite failed with exit code', actCode);
+    process.exit(actCode);
+  }
+
   console.log('\n================================================================');
   console.log('       ALL SUITES (AUTH + CORE APIS) COMPLETED SUCCESSFULLY!     ');
   console.log('================================================================');

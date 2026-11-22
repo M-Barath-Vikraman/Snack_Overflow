@@ -34,6 +34,12 @@ async function main() {
     process.exit(code3);
   }
 
+  console.log('\n>>> 4. RUNNING FRONTEND ADMIN ACTIVITY HISTORY TESTS...\n');
+  const code4 = await runScript('testActivity.ts');
+  if (code4 !== 0) {
+    process.exit(code4);
+  }
+
   console.log('\n================================================================');
   console.log('       ALL FRONTEND TESTS COMPLETED SUCCESSFULLY!                ');
   console.log('================================================================');

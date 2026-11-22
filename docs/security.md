@@ -77,11 +77,21 @@ Tokens encode a minimal, verified identity payload:
 | Edit Snack (`PATCH /api/snacks/:id`) | ❌ (401) | ❌ (403) | ✅ |
 | Delete Snack (`DELETE /api/snacks/:id`) | ❌ (401) | ❌ (403) | ✅ |
 | Restock Inventory (`POST /api/snacks/:id/restock`) | ❌ (401) | ❌ (403) | ✅ |
+| View Activity History (`GET /api/activities`) | ❌ (401) | ❌ (403) | ✅ |
 
 ### 4.2 Non-Bypassable Database Constraints
 - Foreign key deletion behavior (`ON DELETE RESTRICT`) prevents deletion of snack items and users that possess historical audit logs (`Activity`), preserving non-repudiable audit trails.
 - Check constraints ensure `quantity >= 0`, `lowStockThreshold >= 0`, and `amount > 0` at the database level.
 - Unique constraints prevent duplicate votes (`@@unique([userId, snackId])`) and enforce unique emails (`@unique`).
+
+### 4.3 Activity Audit Log Protection & Data Sanitization (Phase 6)
+- **Role Enforcement**: `GET /api/activities` is strictly guarded by `authenticate` and `requireRole(['ADMIN'])`. Members receive `403 FORBIDDEN` and unauthenticated callers receive `401 UNAUTHORIZED`.
+- **Zero Sensitive Field Leakage**:
+  - Prisma queries for activities employ strict field selection (`select: { id: true, name: true, email: true, role: true }` for user and `{ id: true, name: true, category: true }` for snack).
+  - Password fields (`password`, `passwordHash`) and reset tokens are strictly excluded from memory projection and JSON serialization.
+- **WebSocket Broadcast Privacy**:
+  - State changes trigger notification events (`SNACK_CONSUMED`, `SNACK_RESTOCKED`) that contain entity counts, not user personal details.
+  - Connected admin clients fetch full audit logs over the authenticated REST API endpoint, ensuring that sensitive user names and email addresses are never broadcast over public WebSocket connections.
 
 ---
 

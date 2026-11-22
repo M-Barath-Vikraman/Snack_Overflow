@@ -231,6 +231,14 @@ When the connection transitions from `reconnecting` or `disconnected` back to `c
 ### 7.4 Offline REST Mode
 A WebSocket disconnection **never disables or blocks** standard user operations. All REST endpoints (`/api/snacks`, `/consume`, `/vote`, etc.) continue functioning independently over HTTP.
 
+### 7.5 Admin Activity History Real-Time Synchronization (Phase 6)
+On the Admin Activity History page (`ActivityPage.tsx`), connected administrator clients subscribe directly to `SNACK_CONSUMED` and `SNACK_RESTOCKED` events:
+1. When any team member consumes a snack or an administrator restocks an item, the real-time event fires.
+2. The `ActivityPage` listener schedules a debounced refresh (250ms delay).
+3. The client fetches fresh, sanitized audit records from `GET /api/activities` over the authenticated REST API.
+4. This design ensures that sensitive user emails and names are never broadcast across public WebSocket sockets, while keeping the administrator's audit log live and responsive without manual page reloads.
+5. Reconnection reconciliation automatically triggers a refresh when transitioning back to `connected`.
+
 ---
 
 ## 8. Automated Testing & Verification

@@ -27,7 +27,8 @@ A modern, full-stack snack management system designed for team offices and colla
 - [x] **Phase 3 — Authentication & User Management** (Completed & Verified with 48 automated tests)
 - [x] **Phase 4 — Frontend Dashboard & UI** (Completed & Verified with 52 automated tests)
 - [x] **Phase 5 — Real-time WebSockets & Optimistic UI** (Completed & Verified with 49 automated tests)
-- [ ] **Phase 6 — Docker & CI/CD Deployment** (Pending)
+- [x] **Phase 6 — Admin Activity History & Bonus Features** (Completed & Verified with 342 automated assertions)
+- [ ] **Phase 7 — Docker & CI/CD Deployment** (Deferred to Phase 7)
 
 ---
 
@@ -38,6 +39,12 @@ A modern, full-stack snack management system designed for team offices and colla
 |---|---|:---:|---|
 | `POST` | `/api/auth/register` | Public | Register new user (default `MEMBER`, password hashed with bcrypt) |
 | `POST` | `/api/auth/login` | Public | Authenticate credentials and return signed JWT |
+
+### Activities History (`/api/activities`)
+
+| Method | Endpoint | Access | Description |
+|---|---|:---:|---|
+| `GET` | `/api/activities` | **Admin Only** | Paginated, filtered, sorted audit trail of team consumption and restocks |
 
 ### Snacks Inventory (`/api/snacks`)
 
@@ -100,3 +107,16 @@ npm run seed
 8. **Voting & Unvoting**: Single vote per user enforced by composite unique constraint `Vote(userId, snackId)`, duplicate vote rejection, and vote count tracking.
 9. **Idempotency**: Replaying requests with identical `Idempotency-Key` returns original cached response with `X-Idempotent-Replay: true` without double-decrementing stock; key reuse with different parameters is rejected.
 10. **Dashboard Summary**: Accurate category counts and deterministic Snack of the Week calculation.
+
+---
+
+## Remaining Bonus Features Verification Summary
+
+| Bonus Feature | Implementation Details | Status | Verified In |
+|---|---|:---:|---|
+| **User Signup & Normalization** | Dedicated `POST /api/auth/register` with Zod validation, lowercase email normalization, bcrypt hashing (work factor 10), and automatic `MEMBER` role assignment with anti-escalation enforcement. | **Complete** | `authTestSuite.ts` & `testFrontendIntegration.ts` |
+| **Server-Side Sorting** | Multi-field PostgreSQL sorting on `/api/snacks` (`createdAt`, `name`, `quantity`, `category`) and `/api/activities` (`createdAt`, `amount`) with deterministic secondary ID sorting to prevent page jitter. | **Complete** | `apiTestSuite.ts` & `activityTestSuite.ts` |
+| **Optimistic UI with Rollback** | Instant client-side stock deduction and vote tally toggle with automatic error rollback and user alerts upon HTTP 409 (`INSUFFICIENT_STOCK`) conflicts. | **Complete** | `testWebSocket.ts` |
+| **Real-Time WebSockets** | Handshake JWT authentication, close code 4401 on invalid/expired tokens, post-commit event broadcasting, four explicit connection states, and exponential backoff with jitter. | **Complete** | `websocketTestSuite.ts` & `testWebSocket.ts` |
+| **Idempotency-Key Support** | RFC-compliant `Idempotency-Key` tracking with 24-hour expiration in PostgreSQL, atomic hash validation, and cached replay responses with `X-Idempotent-Replay: true`. | **Complete** | `apiTestSuite.ts` |
+| **Admin Activity History** | Admin-only audit trail (`GET /api/activities`) with search, action filtering, sorting, pagination, strict user sanitization (zero password hashes), and live debounced real-time synchronization. | **Complete** | `activityTestSuite.ts` & `testActivity.ts` |

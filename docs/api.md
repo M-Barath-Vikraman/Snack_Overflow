@@ -387,6 +387,62 @@ Removes the authenticated user's vote.
 
 ---
 
+### 3.11 `GET /api/activities` (Phase 6)
+Retrieves the paginated audit trail of snack consumption and restocking activities.
+
+- **Access**: Strictly restricted to `ADMIN` users. Requests with `MEMBER` token return `403 FORBIDDEN`. Unauthenticated requests return `401 UNAUTHORIZED`.
+- **Query Parameters**:
+  - `page` (optional integer, min 1, default `1`): Current page number.
+  - `limit` (optional integer, min 1, max 100, default `20`): Items per page (capped at 100).
+  - `action` (optional string): Filter by action: `'CONSUMED'` or `'RESTOCKED'`.
+  - `search` (optional string): Case-insensitive search matching user name, user email, or snack name.
+  - `sortBy` (optional string, `'createdAt'` | `'amount'`, default `'createdAt'`): Field to sort by.
+  - `sortOrder` (optional string, `'asc'` | `'desc'`, default `'desc'`): Sort direction.
+  - *Secondary Sort*: Deterministically orders by `{ id: 'desc' }` as a secondary sort key to prevent pagination jitter across pages.
+- **Response (`200 OK`)**:
+```json
+{
+  "success": true,
+  "message": "Activities retrieved successfully",
+  "data": {
+    "activities": [
+      {
+        "id": "e3012921-1250-4d51-87c2-19213890bb42",
+        "action": "CONSUMED",
+        "amount": 2,
+        "createdAt": "2026-11-22T08:35:00.000Z",
+        "user": {
+          "id": "d748f2c0-8d5f-4a0f-90e1-0c58e727581b",
+          "name": "Member User",
+          "email": "member@snackoverflow.com",
+          "role": "MEMBER"
+        },
+        "snack": {
+          "id": "7b09ad84-482f-48d8-9588-e9f086e3f019",
+          "name": "Wasabi Peas",
+          "category": "SAVOURY"
+        }
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 42,
+      "totalPages": 3
+    }
+  },
+  "timestamp": "2026-11-22T08:35:01.000Z"
+}
+```
+- **Security & Sanitization**:
+  - `user.password` and `user.passwordHash` are strictly excluded from queries and response serialization.
+- **Errors**:
+  - `400 VALIDATION_ERROR`: Invalid `action`, invalid `sortBy`, invalid `sortOrder`, `page < 1`, or `limit > 100`.
+  - `401 UNAUTHORIZED`: Missing or invalid Bearer JWT token.
+  - `403 FORBIDDEN`: Caller authenticated with `MEMBER` role.
+
+---
+
 ## 4. Real-Time Integration & Optimistic Reconciliation (Phase 5)
 
 ### 4.1 Post-Commit WebSocket Broadcasting
