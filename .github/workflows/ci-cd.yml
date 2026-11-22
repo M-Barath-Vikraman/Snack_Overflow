@@ -1,0 +1,154 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+# Prevent overlapping concurrent builds on the main branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Default least-privilege permissions
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------
+  # Job 1: Backend CI Validation
+  # -------------------------------------------------------------
+  ci-backend:
+    name: Backend CI (Types, Build, Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npx prisma generate
+
+      - name: Verify Backend TypeScript Compilation
+        working-directory: ./backend
+        run: npx tsc --noEmit
+
+      - name: Build Backend Production Bundle
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Run Backend Automated Test Suites
+        working-directory: ./backend
+        run: npm test
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-jwt-secret-placeholder-minimum-32-chars' }}
+
+  # -------------------------------------------------------------
+  # Job 2: Frontend CI Validation
+  # -------------------------------------------------------------
+  ci-frontend:
+    name: Frontend CI (Types, Build, Tests)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Prepare Backend Dependencies for In-Process Test Server
+        working-directory: ./backend
+        run: |
+          npm ci
+          npx prisma generate
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Verify Frontend TypeScript Compilation & Production Build
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Run Strict Runtime Configuration Tests
+        working-directory: ./frontend
+        run: npx tsx testRuntimeConfig.ts
+
+      - name: Run Frontend Integration & Real-Time Test Suites
+        working-directory: ./frontend
+        run: npm test
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-jwt-secret-placeholder-minimum-32-chars' }}
+
+  # -------------------------------------------------------------
+  # Job 3: Docker Build & Publish to GHCR
+  # -------------------------------------------------------------
+  build-and-publish:
+    name: Build & Publish Images to GHCR
+    needs: [ci-backend, ci-frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Compute Lowercase Repository Owner
+        id: repo_owner
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Publish Backend Docker Image
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/snack-overflow-backend:${{ github.sha }}
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/snack-overflow-backend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and Publish Frontend Docker Image
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/snack-overflow-frontend:${{ github.sha }}
+            ghcr.io/${{ steps.repo_owner.outputs.owner }}/snack-overflow-frontend:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

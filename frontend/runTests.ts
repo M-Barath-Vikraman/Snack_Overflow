@@ -3,11 +3,11 @@ import path from 'path';
 
 function runScript(scriptPath: string): Promise<number> {
   return new Promise((resolve) => {
-    const tsxPath = path.resolve(process.cwd(), '../backend/node_modules/.bin/tsx');
-    const child = spawn(tsxPath, [scriptPath], {
+    const child = spawn('npx', ['tsx', scriptPath], {
       stdio: 'inherit',
       shell: true,
       cwd: process.cwd(),
+      env: { ...process.env, NODE_ENV: 'test' },
     });
     child.on('close', (code) => {
       resolve(code ?? 0);

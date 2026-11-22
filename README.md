@@ -29,7 +29,8 @@ A modern, full-stack snack management system designed for team offices and colla
 - [x] **Phase 5 — Real-time WebSockets & Optimistic UI** (Completed & Verified with 49 automated tests)
 - [x] **Phase 6 — Admin Activity History & Bonus Features** (Completed & Verified with 342 automated assertions)
 - [x] **Phase 7 — Docker & Docker Compose** (Completed & Verified with Multi-Stage Builds & Healthy Containers)
-- [ ] **Phase 8 — GHCR & GitHub Actions CI/CD** (Deferred to Phase 8)
+- [x] **Phase 8 — GitHub Actions CI/CD & GHCR** (Completed & Verified with Automated Pipeline & Image Publishing)
+- [ ] **Phase 9 — Railway Production Deployment** (Pending)
 
 ---
 
@@ -67,6 +68,8 @@ A modern, full-stack snack management system designed for team offices and colla
 See [docs/api.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/api.md) for full request/response contracts and query parameters.
 See [docs/realtime.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/realtime.md) for the WebSocket architecture, event catalog, and reconnection strategy.
 See [docs/frontend.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/frontend.md) for optimistic UI updates, rollbacks, and connection indicators.
+See [docs/docker.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/docker.md) for containerization, multi-stage builds, and Docker Compose orchestration.
+See [docs/ci-cd.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/ci-cd.md) for GitHub Actions CI/CD pipeline, security policies, and GHCR image publishing.
 See [docs/concurrency.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/concurrency.md) for the atomic concurrency and idempotency specifications.
 See [docs/security.md](file:///C:/Users/barat/Desktop/bpf/Snack_Overflow/docs/security.md) for JWT token policies and WebSocket handshake verification.
 
