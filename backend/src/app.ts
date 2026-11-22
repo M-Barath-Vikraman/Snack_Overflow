@@ -18,7 +18,18 @@ export const app = express();
 // Middleware
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const configuredOrigins = config.frontendUrl.split(',').map((url) => url.trim());
+      if (configuredOrigins.includes(origin) || configuredOrigins.includes('*')) {
+        return callback(null, true);
+      }
+      // Allow local development and Docker browser requests on standard hostnames
+      if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error(`Origin ${origin} not allowed by CORS`));
+    },
     credentials: true,
   })
 );
@@ -54,4 +65,29 @@ if (!isTestExecution) {
     logger.info(`Snack Overflow backend running on port ${config.port} [${config.nodeEnv}]`);
     logger.info(`Health check available at http://localhost:${config.port}/health`);
   });
+
+  // Graceful shutdown handling for container environments (SIGTERM & SIGINT)
+  const shutdown = async (signal: string) => {
+    logger.info(`Received ${signal}. Initiating graceful shutdown...`);
+    server.close(async () => {
+      logger.info('HTTP & WebSocket server closed.');
+      try {
+        const { prisma } = await import('./config/database');
+        await prisma.$disconnect();
+        logger.info('Database connection pool cleanly closed.');
+      } catch (err) {
+        logger.error('Error during database disconnect:', err);
+      }
+      process.exit(0);
+    });
+
+    // Force terminate if graceful shutdown hangs
+    setTimeout(() => {
+      logger.error('Forced shutdown due to timeout threshold.');
+      process.exit(1);
+    }, 10000).unref();
+  };
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }

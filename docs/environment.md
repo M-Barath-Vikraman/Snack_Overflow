@@ -11,7 +11,9 @@ All secrets are strictly kept out of version control via `.gitignore`.
 
 | Path | Purpose | Tracked in Git? |
 |---|---|---|
-| `backend/.env` | Local development variables and database credentials | ❌ NO (Ignored) |
+| `.env` | Root Docker Compose environment variables & secrets | ❌ NO (Ignored) |
+| `.env.example` | Root template and reference for Docker Compose | ✅ YES |
+| `backend/.env` | Backend local development variables and database credentials | ❌ NO (Ignored) |
 | `backend/.env.example` | Template and reference with documentation | ✅ YES |
 | `frontend/.env.example` | Vite environment fallback documentation | ✅ YES |
 | `frontend/public/config.js` | Runtime frontend environment config | ✅ YES (contains no secrets) |
