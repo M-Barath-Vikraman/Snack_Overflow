@@ -6,12 +6,23 @@ NGINX_CONF="/etc/nginx/conf.d/default.conf"
 
 # 1. Normalize BACKEND_URL if provided (strip trailing slashes, ensure protocol)
 if [ -n "$BACKEND_URL" ]; then
-  case "$BACKEND_URL" in
+  CLEAN_BACKEND_URL=$(echo "$BACKEND_URL" | sed 's#/*$##')
+  case "$CLEAN_BACKEND_URL" in
     http://*|https://*)
-      TARGET_BACKEND_URL="${BACKEND_URL%/}"
+      # Explicit scheme provided by user/environment: preserve as-is
+      TARGET_BACKEND_URL="$CLEAN_BACKEND_URL"
+      ;;
+    localhost*|127.0.0.1*|backend*|*:[0-9]*)
+      # Local development and internal Docker Compose addresses: default to http://
+      TARGET_BACKEND_URL="http://${CLEAN_BACKEND_URL}"
+      ;;
+    *.*)
+      # External domain names without a scheme (e.g. Railway public domains): default to https://
+      TARGET_BACKEND_URL="https://${CLEAN_BACKEND_URL}"
       ;;
     *)
-      TARGET_BACKEND_URL="http://${BACKEND_URL%/}"
+      # Local container or internal service names without dots
+      TARGET_BACKEND_URL="http://${CLEAN_BACKEND_URL}"
       ;;
   esac
 fi
