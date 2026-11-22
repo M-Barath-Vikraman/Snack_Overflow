@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 import { verifyToken } from '../utils/jwt';
 import { UserPayload } from '../types';
 import { WS_EVENTS, WebSocketEventEnvelope, WsEventType } from './events';
+import { isOriginAllowed } from '../config/cors';
 
 export interface AuthenticatedClientInfo {
   user: UserPayload;
@@ -26,7 +27,21 @@ export class SnackWebSocketServer {
   }
 
   public init(server: HttpServer): WebSocketServer {
-    this.wss = new WebSocketServer({ server });
+    this.wss = new WebSocketServer({
+      server,
+      verifyClient: (info, callback) => {
+        const origin =
+          info.origin && info.origin.length > 0
+            ? info.origin
+            : (info.req.headers.origin as string | undefined);
+
+        if (!isOriginAllowed(origin)) {
+          logger.warn(`WebSocket connection rejected: Origin ${origin} not allowed by CORS`);
+          return callback(false, 403, `Origin ${origin} not allowed by CORS`);
+        }
+        return callback(true);
+      },
+    });
 
     this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
       // 1. Authenticate connection via JWT in query string or Sec-WebSocket-Protocol header

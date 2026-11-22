@@ -182,6 +182,24 @@ async function runWebSocketTests() {
     });
     assert(expiredCloseCode === 4401 || expiredCloseCode === 1008, 'Expired JWT is immediately rejected with 4401');
 
+    // Test 4b: Unauthorized Origin is rejected with HTTP 403 / handshake failure
+    const unauthorizedOriginResult = await new Promise<boolean>((resolve) => {
+      const ws = new WebSocket(`${wsBaseUrl}?token=${validToken}`, {
+        headers: { Origin: 'https://unauthorized-evil-site.com' },
+      });
+      ws.on('open', () => {
+        ws.close();
+        resolve(false);
+      });
+      ws.on('unexpected-response', (_req, res) => {
+        resolve(res.statusCode === 403);
+      });
+      ws.on('error', () => {
+        resolve(true);
+      });
+    });
+    assert(unauthorizedOriginResult === true, 'Unauthorized Origin header is rejected by WebSocket server');
+
     console.log('\n--- 2. Multi-Client Broadcast Synchronization Tests ---');
 
     // Connect a second authenticated client

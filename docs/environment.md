@@ -42,7 +42,11 @@ NODE_ENV="development"
 # Port on which the Express server listens
 PORT=3000
 
-# Frontend origin allowed by CORS
+# Allowed frontend origin for Cross-Origin Resource Sharing (CORS) and WebSockets
+# Accepts exact origins (e.g. https://snack-overflow-frontend-production.up.railway.app), comma-separated list, or local development origins
+FRONTEND_ORIGIN="http://localhost:5173"
+
+# Legacy fallback for CORS (backward compatible)
 FRONTEND_URL="http://localhost:5173"
 ```
 
@@ -54,7 +58,8 @@ FRONTEND_URL="http://localhost:5173"
 - **`JWT_SECRET`**: A cryptographically random string (e.g. 64 hex characters) used to sign authentication tokens.
 - **`NODE_ENV`**: Sets logging verbosity and error display level (`development` / `production`).
 - **`PORT`**: HTTP and WebSocket listen port (defaults to 3000).
-- **`FRONTEND_URL`**: Origin URL passed to CORS middleware to allow requests from the React development server or production web app.
+- **`FRONTEND_ORIGIN`**: The exact origin URL(s) allowed for Cross-Origin Resource Sharing (CORS) and WebSocket handshakes (`verifyClient`). Supports single origin or comma-separated list. Normalizes trailing slashes and rejects wildcards (`*`) to ensure security.
+- **`FRONTEND_URL`**: Backward-compatible fallback for `FRONTEND_ORIGIN`.
 
 ---
 

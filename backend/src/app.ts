@@ -2,6 +2,7 @@ import http from 'http';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { config, validateConfig } from './config/env';
+import { isOriginAllowed } from './config/cors';
 import routes from './routes';
 import { requestLogger } from './middleware/loggerMiddleware';
 import { errorHandler } from './middleware/errorMiddleware';
@@ -19,13 +20,7 @@ export const app = express();
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      const configuredOrigins = config.frontendUrl.split(',').map((url) => url.trim());
-      if (configuredOrigins.includes(origin) || configuredOrigins.includes('*')) {
-        return callback(null, true);
-      }
-      // Allow local development and Docker browser requests on standard hostnames
-      if (/^http:\/\/localhost(:\d+)?$/.test(origin) || /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)) {
+      if (isOriginAllowed(origin)) {
         return callback(null, true);
       }
       return callback(new Error(`Origin ${origin} not allowed by CORS`));

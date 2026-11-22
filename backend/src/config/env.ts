@@ -10,9 +10,13 @@ export interface AppConfig {
   databaseUrl: string;
   jwtSecret: string;
   jwtExpiresIn: string;
+  frontendOrigin: string;
   frontendUrl: string;
   isProduction: boolean;
 }
+
+const resolvedFrontendOrigin =
+  process.env.FRONTEND_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:5173';
 
 export const config: AppConfig = {
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -20,7 +24,8 @@ export const config: AppConfig = {
   databaseUrl: process.env.DATABASE_URL || '',
   jwtSecret: process.env.JWT_SECRET || 'fallback-secret-for-dev-only',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendOrigin: resolvedFrontendOrigin,
+  frontendUrl: resolvedFrontendOrigin,
   isProduction: (process.env.NODE_ENV || 'development') === 'production',
 };
 

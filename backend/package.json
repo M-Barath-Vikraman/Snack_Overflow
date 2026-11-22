@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/app.js",
     "test": "tsx src/tests/runAllTests.ts",
+    "test:cors": "tsx src/tests/corsTestSuite.ts",
     "test:auth": "tsx src/tests/authTestSuite.ts",
     "test:api": "tsx src/tests/apiTestSuite.ts",
     "prisma:generate": "prisma generate",

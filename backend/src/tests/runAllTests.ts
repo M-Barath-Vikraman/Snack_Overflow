@@ -19,7 +19,14 @@ function runScript(scriptPath: string): Promise<number> {
 }
 
 async function main() {
-  console.log('>>> RUNNING PHASE 3 AUTHENTICATION TEST SUITE...\n');
+  console.log('>>> RUNNING CORS & ORIGIN VALIDATION TEST SUITE...\n');
+  const corsCode = await runScript('src/tests/corsTestSuite.ts');
+  if (corsCode !== 0) {
+    console.error('\n❌ CORS & Origin validation test suite failed with exit code', corsCode);
+    process.exit(corsCode);
+  }
+
+  console.log('\n>>> RUNNING PHASE 3 AUTHENTICATION TEST SUITE...\n');
   const authCode = await runScript('src/tests/authTestSuite.ts');
   if (authCode !== 0) {
     console.error('\n❌ Authentication test suite failed with exit code', authCode);
