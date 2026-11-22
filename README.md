@@ -47,6 +47,7 @@ Snack Overflow utilizes two completely separate Railway PostgreSQL database inst
 - [x] **Phase 6 — Admin Activity History & Bonus Features** (Completed & Verified with 342 automated assertions)
 - [x] **Phase 7 — Docker & Docker Compose** (Completed & Verified with Multi-Stage Builds & Healthy Containers)
 - [x] **Phase 8 — GitHub Actions CI/CD & GHCR** (Completed & Verified with Automated Pipeline & Image Publishing)
+- [x] **Dynamic Cloud Proxy & Runtime Configuration** (Frontend Nginx reverse proxy dynamically driven by `BACKEND_URL` for standalone Railway services)
 - [ ] **Phase 9 — Railway Production Deployment** (Pending)
 
 ---

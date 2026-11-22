@@ -66,10 +66,19 @@ When running the app in the browser, `public/config.js` is loaded:
 
 ```js
 window.__APP_CONFIG__ = {
-  API_BASE_URL: "http://localhost:3000/api",
-  WS_URL: "ws://localhost:3000"
+  API_BASE_URL: "/api",
+  WS_URL: (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws'
 };
 ```
+
+### Container Environment Variables (`frontend`)
+When running inside Docker or deploying to Railway, the frontend container accepts:
+
+| Variable | Description | Example (Railway) | Example (Docker Compose) |
+|---|---|---|---|
+| `BACKEND_URL` | Base URL of backend service used **strictly as Nginx upstream proxy** (`/api` and `/ws`). Never exposed to browser client code. | `https://${{backend.RAILWAY_PUBLIC_DOMAIN}}` | `http://backend:3000` |
+| `API_BASE_URL` | Frontend browser API endpoint in `config.js` (Optional, defaults to `/api` so browser calls route through Nginx reverse proxy) | `/api` | `/api` |
+| `WS_URL` | Frontend browser WebSocket endpoint in `config.js` (Optional, defaults to frontend origin with `/ws`) | `wss://${window.location.host}/ws` (automatic) | `ws://localhost:8080/ws` (automatic) |
 
 ### Why Strict Runtime Configuration?
 1. **Single Source of Truth**: `public/config.js` is the sole source of truth for `API_BASE_URL` and `WS_URL`.

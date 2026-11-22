@@ -72,17 +72,30 @@ The frontend image uses a 2-stage build:
 
 ---
 
-## 4. Frontend Runtime Configuration
+## 4. Frontend Runtime Configuration & Nginx Reverse Proxy
 
-### Zero-Rebuild Runtime Configuration
+### 4.1 Zero-Rebuild Runtime Configuration
 To adhere to 12-factor application principles:
 - The React application reads its API and WebSocket URLs strictly from `window.__APP_CONFIG__` loaded via `/config.js`.
 - During container startup, Nginx executes `/docker-entrypoint.d/40-generate-config.sh`:
-  - If `API_BASE_URL` or `WS_URL` environment variables are provided to the container, it regenerates `/usr/share/nginx/html/config.js` with those values.
+  - If `BACKEND_URL` is provided, it automatically configures Nginx reverse proxy routes for `/api` and `/ws`.
+  - If `API_BASE_URL` or `WS_URL` are not explicitly defined, they are derived automatically from `BACKEND_URL` (e.g. `BACKEND_URL/api` and `ws(s)://BACKEND_URL`).
   - If unset, the pre-packaged default `/config.js` is preserved.
 - Nginx explicitly serves `/config.js` and `/index.html` with:
   `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0`
   This ensures configuration updates take effect immediately on browser reload without cache invalidation issues.
+
+### 4.2 Dynamic Nginx Reverse Proxy & Multi-Environment Support
+In previous iterations, Nginx statically proxied to `http://backend:3000`, causing deployment failures on standalone cloud platforms like Railway where frontend and backend run as independent services without a shared `backend` DNS host (`host not found in upstream "backend"`).
+
+To resolve this across both Docker Compose and cloud platforms:
+- **`BACKEND_URL` Environment Variable**: Specifies the backend service target (e.g. `http://backend:3000` in Docker Compose, or `https://backend.up.railway.app` on Railway).
+- **Dynamic Configuration Generation**: At container boot, `/docker-entrypoint.d/40-generate-config.sh` dynamically generates `/etc/nginx/conf.d/default.conf` using `BACKEND_URL`:
+  - `/api` requests proxy to `${BACKEND_URL}/api`.
+  - `/ws` requests proxy to `${BACKEND_URL}/ws`, preserving `Upgrade` and `Connection "upgrade"` headers for WebSocket synchronization.
+  - SNI is automatically enabled (`proxy_ssl_server_name on;`) for secure TLS backends.
+- **Fail-Safe Startup**: If `BACKEND_URL` is omitted, Nginx generates a safe configuration returning HTTP 503 (`BACKEND_UNAVAILABLE`) for `/api` and `/ws` without crashing the container or failing the healthcheck.
+- **Pre-Flight Validation**: The entrypoint runs `nginx -t` to validate the generated configuration before Nginx starts.
 
 ---
 

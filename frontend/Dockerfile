@@ -37,7 +37,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy runtime configuration entrypoint script
 COPY docker-entrypoint.sh /docker-entrypoint.d/40-generate-config.sh
-RUN chmod +x /docker-entrypoint.d/40-generate-config.sh
+RUN sed -i 's/\r$//' /docker-entrypoint.d/40-generate-config.sh && \
+    chmod +x /docker-entrypoint.d/40-generate-config.sh
 
 # Prepare directory permissions and PID file for non-root execution
 RUN touch /var/run/nginx.pid && \
