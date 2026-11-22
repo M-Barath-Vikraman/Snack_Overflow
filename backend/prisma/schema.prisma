@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum SnackCategory {
+  SWEET
+  SAVOURY
+  DRINK
+  HEALTHY_ISH
+}
+
+enum ActivityAction {
+  RESTOCKED
+  CONSUMED
+}
+
+model User {
+  id              String           @id @default(uuid())
+  name            String
+  email           String           @unique
+  password        String
+  role            Role             @default(MEMBER)
+  votes           Vote[]
+  activities      Activity[]
+  idempotencyKeys IdempotencyKey[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+/// Note on Snack Status and Stock Protection:
+/// - Snack status (IN_STOCK, LOW_STOCK, OUT_OF_STOCK) must be derived at runtime from quantity and lowStockThreshold.
+///   It is intentionally NOT stored in the database.
+/// - Database-level CHECK constraints prepared for initial migration:
+///   1. ALTER TABLE "Snack" ADD CONSTRAINT snack_quantity_non_negative CHECK (quantity >= 0);
+///   2. ALTER TABLE "Snack" ADD CONSTRAINT snack_threshold_non_negative CHECK ("lowStockThreshold" >= 0);
+model Snack {
+  id                String        @id @default(uuid())
+  name              String        @unique
+  category          SnackCategory
+  quantity          Int           @default(0)
+  lowStockThreshold Int           @default(5)
+  votes             Vote[]
+  activities        Activity[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([category])
+}
+
+model Vote {
+  id        String   @id @default(uuid())
+  userId    String
+  snackId   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snack     Snack    @relation(fields: [snackId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, snackId])
+  @@index([snackId])
+}
+
+/// Historical audit records must be preserved.
+/// Foreign keys to User and Snack use `onDelete: Restrict`.
+/// Database-level CHECK constraint prepared for initial migration:
+/// 3. ALTER TABLE "Activity" ADD CONSTRAINT activity_amount_positive CHECK (amount > 0);
+model Activity {
+  id        String         @id @default(uuid())
+  userId    String
+  snackId   String
+  action    ActivityAction
+  amount    Int
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  snack     Snack          @relation(fields: [snackId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([snackId])
+  @@index([createdAt])
+}
+
+/// Model supporting Idempotency-Key handling for consume operations.
+/// Composite unique constraint on [userId, key] allows different users to use identical keys safely.
+model IdempotencyKey {
+  id             String    @id @default(uuid())
+  key            String
+  userId         String
+  requestPath    String
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([expiresAt])
+}
