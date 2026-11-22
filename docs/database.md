@@ -2,174 +2,123 @@
 
 ## 1. Overview & Connection Architecture
 
-Snack Overflow utilizes **PostgreSQL** hosted on **Railway**, interfaced via **Prisma ORM**.
+Snack Overflow utilizes **PostgreSQL** hosted on **Railway**, interfaced via **Prisma ORM (v5.22.0)**.
 
 A single shared Railway PostgreSQL instance powers both local development and future production deployments:
-- **Local Development**: Connects through Railway's **Public Database URL** (e.g., `postgresql://postgres:...@gondola.proxy.rlwy.net:PORT/railway`).
-- **Production Deployment (Railway)**: Connects through Railway's **Private Database URL** (e.g., `postgresql://postgres:...@postgres.railway.internal:5432/railway`) for minimal network latency and private cloud networking.
+- **Local Development**: Connects through Railway's **Public Database URL** (`DATABASE_URL` in `backend/.env`).
+- **Production Deployment (Railway)**: Connects through Railway's **Private Database URL** (`postgres.railway.internal`) for minimal network latency and private cloud networking.
+- **Single Database Guarantee**: Both local development and cloud production target the same Railway PostgreSQL database (`railway`).
 
-> ⚠️ **CRITICAL RULE**: Never run destructive migration commands (`prisma migrate reset` or manual `DROP TABLE`) against the shared Railway database.
-
----
-
-## 2. Schema Architecture & Entity Definitions
-
-### 2.1 Entity Relationship Diagram
-
-```text
-┌──────────────┐         1:N          ┌──────────────┐
-│     User     ├─────────────────────►│     Vote     │
-│              │                      │              │
-│  - id (PK)   │◄─────────────────────┤  - id (PK)   │
-│  - name      │         N:1          │  - userId(FK)│
-│  - email (U) │                      │  - snackId(FK│
-│  - password  │                      └──────┬───────┘
-│  - role      │                             │
-│              │         1:N          N:1    │
-│              ├───────────────┐      ┌──────┘
-│              │               │      │
-│              │               ▼      ▼
-│              │         ┌──────────────┐
-│              │         │    Snack     │
-│              │         │              │
-│              │         │  - id (PK)   │
-│              │         │  - name (U)  │
-│              │         │  - category  │
-│              │         │  - quantity  │
-│              │         │  - threshold │
-│              │         └──────▲───────┘
-│              │                │
-│              │         1:N    │ N:1 (Restrict)
-│              ├───────────────┐│
-│              │ (Restrict)    ▼│
-│              │         ┌──────────────┐
-│              │         │   Activity   │
-│              │         │  (Audit Log) │
-│              │         │  - id (PK)   │
-│              │         │  - userId(FK)│
-│              │         │  - snackId(FK│
-│              │         │  - action    │
-│              │         │  - amount    │
-│              │         │  - createdAt │
-│              │         └──────────────┘
-│              │
-│              │         1:N          ┌───────────────────────────┐
-│              └─────────────────────►│      IdempotencyKey       │
-│                                     │                           │
-│                                     │  - id (PK)                │
-│                                     │  - key                    │
-│                                     │  - userId (FK)            │
-│                                     │  - requestPath            │
-│                                     │  - responseStatus         │
-│                                     │  - responseBody           │
-│                                     │  - createdAt              │
-│                                     │  - expiresAt              │
-│                                     │  - U([userId, key])       │
-│                                     └───────────────────────────┘
-```
+> ⚠️ **CRITICAL SAFETY RULE**: Never run destructive migration commands (`prisma migrate reset`, `prisma db push --force-reset`, or manual `DROP TABLE`) against the shared Railway database.
 
 ---
 
-## 3. Entity Details, Constraints & Design Decisions
+## 2. Migration Status
 
-### 3.1 User
-Represents team members and administrators.
-- `id`: UUID (Primary Key, `@default(uuid())`).
-- `name`: String.
-- `email`: String (`@unique` creates the primary unique index `User_email_key`).
-- `password`: Hashed string (bcrypt).
-- `role`: Enum (`ADMIN`, `MEMBER`), default `MEMBER`.
-- `createdAt`, `updatedAt`: Timestamps.
+- **Initial Migration**: `20261122000000_init_schema`
+- **Execution Date**: Sun Nov 22 2026 10:19:12 GMT+0530
+- **Status**: ✅ **APPLIED AND VERIFIED**
+- **Command Executed**: `npx prisma migrate deploy`
 
-### 3.2 Snack
-Represents inventory items.
-- `id`: UUID (Primary Key, `@default(uuid())`).
-- `name`: String (`@unique` creates the unique index `Snack_name_key`).
-- `category`: Enum (`SWEET`, `SAVOURY`, `DRINK`, `HEALTHY_ISH`), indexed via `@@index([category])`.
-- `quantity`: Integer (Default 0).
-- `lowStockThreshold`: Integer (Default 5).
-- `createdAt`, `updatedAt`: Timestamps.
+---
 
-#### Snack Status Derivation
-Per system specification, **Snack Status is dynamically derived and NEVER stored in the database**:
+## 3. Verified Schema & Database Constraints
+
+### 3.1 Application Tables (All Verified in `public` Schema)
+1. **`User`**: Team members and administrators.
+2. **`Snack`**: Inventory items.
+3. **`Vote`**: Snack requests and restock votes by members.
+4. **`Activity`**: Audit trail of restocks and consumptions.
+5. **`IdempotencyKey`**: Deduplication cache for transactional consumption operations.
+6. **`_prisma_migrations`**: Prisma migration audit log.
+
+---
+
+### 3.2 Database-Level PostgreSQL CHECK Constraints (Verified)
+The following database-level check constraints were applied and verified via `information_schema.check_constraints`:
+
+| Table | Constraint Name | PostgreSQL Clause | Purpose |
+|---|---|---|---|
+| `Snack` | `snack_quantity_non_negative` | `(quantity >= 0)` | Guarantees stock quantity can never drop below zero at the DB engine level. |
+| `Snack` | `snack_threshold_non_negative` | `("lowStockThreshold" >= 0)` | Guarantees threshold value is never negative. |
+| `Activity` | `activity_amount_positive` | `(amount > 0)` | Guarantees consumption or restock amounts are strictly positive ($> 0$). |
+
+---
+
+### 3.3 Unique Constraints (Verified via Unique Indexes)
+
+| Table | Constraint / Index Name | Columns | Guarantee |
+|---|---|---|---|
+| `User` | `User_email_key` | `email` | Each email address must be unique across all users. |
+| `Snack` | `Snack_name_key` | `name` | Snack names must be unique. |
+| `Vote` | `Vote_userId_snackId_key` | `(userId, snackId)` | A user can only vote for a given snack once. |
+| `IdempotencyKey` | `IdempotencyKey_userId_key_key` | `(userId, key)` | Keys are uniquely scoped per user, preventing cross-user key collisions. |
+
+---
+
+### 3.4 Foreign Keys & Referential Deletion Behavior (Verified)
+
+| Dependent Table | Column | References | ON DELETE Rule | Architectural Reason |
+|---|---|---|:---:|---|
+| `Activity` | `userId` | `User(id)` | **`RESTRICT`** | Preserves historical audit records permanently even if user accounts are deactivated. |
+| `Activity` | `snackId` | `Snack(id)` | **`RESTRICT`** | Preserves historical restock/consumption records permanently. |
+| `Vote` | `userId` | `User(id)` | `CASCADE` | Member votes are removed if user profile is removed. |
+| `Vote` | `snackId` | `Snack(id)` | `CASCADE` | Votes are cleared if a snack is removed. |
+| `IdempotencyKey` | `userId` | `User(id)` | `CASCADE` | Transient idempotency records are cleaned up with user profile. |
+
+---
+
+### 3.5 PostgreSQL Indexes (Verified)
+
+- **`User`**: `User_pkey` (`id`), `User_email_key` (`email`).
+- **`Snack`**: `Snack_pkey` (`id`), `Snack_name_key` (`name`), `Snack_category_idx` (`category`).
+- **`Vote`**: `Vote_pkey` (`id`), `Vote_userId_snackId_key` (`userId, snackId`), `Vote_snackId_idx` (`snackId`).
+- **`Activity`**: `Activity_pkey` (`id`), `Activity_userId_idx` (`userId`), `Activity_snackId_idx` (`snackId`), `Activity_createdAt_idx` (`createdAt`).
+- **`IdempotencyKey`**: `IdempotencyKey_pkey` (`id`), `IdempotencyKey_userId_key_key` (`userId, key`), `IdempotencyKey_expiresAt_idx` (`expiresAt`).
+
+---
+
+### 3.6 PostgreSQL Enums (Verified)
+- **`Role`**: `ADMIN`, `MEMBER`
+- **`SnackCategory`**: `SWEET`, `SAVOURY`, `DRINK`, `HEALTHY_ISH`
+- **`ActivityAction`**: `RESTOCKED`, `CONSUMED`
+
+---
+
+### 3.7 Snack Status Architecture Rule
+Per project specification, **Snack Status is derived at runtime and is NOT stored in the database**:
 - If `quantity <= 0` $\rightarrow$ `'OUT_OF_STOCK'`
 - If `0 < quantity <= lowStockThreshold` $\rightarrow$ `'LOW_STOCK'`
 - If `quantity > lowStockThreshold` $\rightarrow$ `'IN_STOCK'`
 
 Implemented in `src/types/index.ts` via `deriveSnackStatus(quantity, lowStockThreshold)`.
 
-#### PostgreSQL CHECK Constraints on Snack
-Prisma schema does not support native `@check` attributes. Database-level constraints are defined in the migration SQL:
-1. **`Snack.quantity >= 0`**:
-   ```sql
-   ALTER TABLE "Snack" ADD CONSTRAINT snack_quantity_non_negative CHECK ("quantity" >= 0);
-   ```
-   Prevents race conditions and guarantees at the PostgreSQL engine level that snack inventory can never be negative.
-2. **`Snack.lowStockThreshold >= 0`**:
-   ```sql
-   ALTER TABLE "Snack" ADD CONSTRAINT snack_threshold_non_negative CHECK ("lowStockThreshold" >= 0);
-   ```
-   Guarantees threshold values cannot be set to nonsensical negative numbers.
-
-### 3.3 Vote
-Tracks member votes for restocking or requesting snacks.
-- `id`: UUID (Primary Key).
-- `userId`: Foreign key referencing `User(id)` with `onDelete: Cascade`.
-- `snackId`: Foreign key referencing `Snack(id)` with `onDelete: Cascade`.
-- `createdAt`: Timestamp.
-- **Constraints & Indexes**:
-  - `@@unique([userId, snackId])`: Guarantees each user can vote for a given snack only once.
-  - `@@index([snackId])`: Dedicated index for querying and tallying votes for a specific snack.
-
-### 3.4 Activity
-Historical audit trail of inventory restocks and member consumptions.
-- `id`: UUID (Primary Key).
-- `userId`: Foreign key referencing `User(id)` with **`onDelete: Restrict`**.
-- `snackId`: Foreign key referencing `Snack(id)` with **`onDelete: Restrict`**.
-- `action`: Enum (`RESTOCKED`, `CONSUMED`).
-- `amount`: Integer.
-- `createdAt`: Timestamp.
-- **Foreign-Key Deletion Behavior (`Restrict`)**:
-  Both `User` and `Snack` relations use `onDelete: Restrict`. Historical consumption and restock activity records must be permanently preserved for auditing, reporting, and accounting. A user or snack with linked activity cannot be deleted without preserving or archiving history.
-- **PostgreSQL CHECK Constraint on Activity**:
-  3. **`Activity.amount > 0`**:
-     ```sql
-     ALTER TABLE "Activity" ADD CONSTRAINT activity_amount_positive CHECK ("amount" > 0);
-     ```
-     Guarantees that consumption or restock amounts must always be strictly positive numbers.
-- **Indexes**:
-  - `@@index([userId])`: Quick retrieval of user activity history.
-  - `@@index([snackId])`: Quick retrieval of snack audit history.
-  - `@@index([createdAt])`: Chronological feed sorting.
-
-### 3.5 IdempotencyKey
-Ensures safe retries for consume and transactional requests without duplicate state mutations.
-- `id`: UUID (Primary Key).
-- `key`: String (Client-provided idempotency key, e.g. UUID).
-- `userId`: Foreign key referencing `User(id)` with `onDelete: Cascade`.
-- `requestPath`: String.
-- `responseStatus`: Optional cached HTTP status.
-- `responseBody`: Optional cached JSON response.
-- `createdAt`: Timestamp.
-- `expiresAt`: Optional timestamp for TTL expiration.
-- **Composite Uniqueness Decision (`[userId, key]`)**:
-  Uniqueness is scoped per user via `@@unique([userId, key])`. Scoping keys per user prevents accidental collisions between different users who may submit common client-generated identifiers (or predictable request numbers), while ensuring that retries by the same user are safely deduplicated.
-- **Indexes**:
-  - `@@unique([userId, key])`: Primary lookup index for verifying idempotency keys per user.
-  - `@@index([expiresAt])`: Efficient index for TTL expiration and automated background key cleanup.
-
 ---
 
-## 4. Prepared Initial Migration SQL
+## 4. Commands for Future Prisma Migrations
 
-The migration script has been prepared in:
-`backend/prisma/migrations/20261122000000_init_schema/migration.sql`
+When schema changes are required in future phases:
 
-It contains all required DDL statements along with the three PostgreSQL CHECK constraints:
-```sql
-ALTER TABLE "Snack" ADD CONSTRAINT snack_quantity_non_negative CHECK ("quantity" >= 0);
-ALTER TABLE "Snack" ADD CONSTRAINT snack_threshold_non_negative CHECK ("lowStockThreshold" >= 0);
-ALTER TABLE "Activity" ADD CONSTRAINT activity_amount_positive CHECK ("amount" > 0);
-```
+1. **Modify Schema**: Update `backend/prisma/schema.prisma`.
+2. **Validate Syntax (Offline)**:
+   ```bash
+   npx prisma validate
+   ```
+3. **Generate Migration without Auto-Applying (to review or inject custom SQL)**:
+   ```bash
+   npx prisma migrate dev --name <migration_name> --create-only
+   ```
+4. **Deploy Migration to Railway Database**:
+   ```bash
+   npx prisma migrate deploy
+   ```
+5. **Regenerate Prisma Client**:
+   ```bash
+   npx prisma generate
+   ```
+6. **Verify Migration**:
+   ```bash
+   npx tsx src/scripts/quickVerify.ts
+   ```
 
-> ⚠️ **Status**: Prepared offline. No database migrations have been executed, and no modifications have been made to the live Railway database.
+> ⚠️ Always use `prisma migrate deploy` for applying migrations to the Railway PostgreSQL database.
