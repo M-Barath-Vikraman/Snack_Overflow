@@ -18,6 +18,23 @@ A modern, full-stack snack management system designed for team offices and colla
 | **CI/CD (Future)** | GitHub Actions |
 | **Deployment (Future)** | Railway |
 
+## Database Architecture: Production vs. Dedicated Test Database
+
+Snack Overflow utilizes two completely separate Railway PostgreSQL database instances to guarantee total isolation between live production data and automated test execution:
+
+1. **Production Database**:
+   - Hosted on Railway.
+   - Holds baseline data (seeded demo accounts `admin@snackoverflow.com` and `member@snackoverflow.com`, and the 4 initial demo snacks).
+   - Configured directly in Railway production environment variables (`DATABASE_URL`).
+   - Production database is strictly protected and never targeted by automated test suites.
+
+2. **Dedicated Test Database**:
+   - Hosted on a separate Railway PostgreSQL instance.
+   - Configured locally via `backend/.env` and in GitHub Actions via the repository secret `DATABASE_URL`.
+   - Runs against an empty baseline schema (all 5 tables: `User`, `Snack`, `Vote`, `Activity`, `IdempotencyKey`).
+   - Tests dynamically create their own uniquely identified users and snacks (e.g., with `${Date.now()}` timestamps) and clean up strictly in `finally` blocks using exact IDs.
+   - Fully independent: no reliance on preexisting demo records.
+
 ---
 
 ## Project Status

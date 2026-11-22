@@ -1,4 +1,13 @@
 // Frontend End-to-End Service & Integration Verification
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../backend/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 import http from 'http';
 import { AddressInfo } from 'net';
 import { app } from '../backend/src/app';
@@ -43,6 +52,9 @@ async function runFrontendTests() {
   const port = (server.address() as AddressInfo).port;
   const serverApiUrl = `http://localhost:${port}/api`;
 
+  const createdUserIds: string[] = [];
+  const createdSnackIds: string[] = [];
+
   try {
     // --- 1. Runtime Environment Configuration Verification ---
     console.log('--- 1. Runtime Configuration Verification ---');
@@ -77,6 +89,7 @@ async function runFrontendTests() {
     const regRes = await authService.register('Frontend Tester', testEmail, testPassword);
     assert(regRes.success === true, 'authService.register succeeds with valid input');
     assert(regRes.data?.user.role === 'MEMBER', 'Registered user assigned role MEMBER');
+    createdUserIds.push(regRes.data!.user.id);
     assert(authService.hasToken() === true, 'JWT token automatically stored in apiClient / localStorage');
     assert(authService.getCurrentUser()?.email === testEmail.toLowerCase(), 'Current user restored in authService');
 
@@ -146,6 +159,7 @@ async function runFrontendTests() {
         role: 'ADMIN',
       },
     });
+    createdUserIds.push(adminRecord.id);
 
     // Login as admin
     const adminLogin = await authService.login(adminEmail, testPassword);
@@ -162,6 +176,7 @@ async function runFrontendTests() {
     });
     assert(createRes.success === true, 'Admin successfully creates snack via snackService.createSnack');
     const createdSnack = createRes.data!;
+    createdSnackIds.push(createdSnack.id);
     assert(createdSnack.name === snackName, 'Created snack name matches');
     assert(createdSnack.status === 'IN_STOCK', 'Derived status is IN_STOCK');
 
@@ -215,25 +230,34 @@ async function runFrontendTests() {
       'Returns INSUFFICIENT_STOCK ("Someone beat you to the last packet!")'
     );
 
-    // Clean up test records
-    console.log('\nCleaning up isolated frontend test artifacts...');
-    await prisma.activity.deleteMany({
-      where: {
-        OR: [
-          { userId: { in: [regRes.data!.user.id, adminRecord.id] } },
-          { snackId: createdSnack.id },
-        ],
-      },
-    });
-    await prisma.snack.deleteMany({ where: { id: createdSnack.id } });
-    await prisma.user.deleteMany({
-      where: { id: { in: [regRes.data!.user.id, adminRecord.id] } },
-    });
-
     console.log('\n================================================================');
     console.log(`FRONTEND INTEGRATION TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
     console.log('================================================================\n');
   } finally {
+    // Isolated Cleanup: Clean only test records created during this run
+    console.log('\nCleaning up isolated frontend test artifacts...');
+    try {
+      if (createdUserIds.length > 0 || createdSnackIds.length > 0) {
+        await prisma.activity.deleteMany({
+          where: {
+            OR: [
+              { userId: { in: createdUserIds } },
+              { snackId: { in: createdSnackIds } },
+            ],
+          },
+        });
+        await prisma.snack.deleteMany({
+          where: { id: { in: createdSnackIds } },
+        });
+        await prisma.user.deleteMany({
+          where: { id: { in: createdUserIds } },
+        });
+        console.log('Isolated frontend test cleanup complete.');
+      }
+    } catch (cleanupErr: any) {
+      console.warn('Warning during frontend test cleanup:', cleanupErr.message);
+    }
+
     server.close();
     await prisma.$disconnect();
     process.exit(failed > 0 ? 1 : 0);

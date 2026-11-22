@@ -5,12 +5,12 @@ on:
     branches:
       - main
 
-# Prevent overlapping concurrent builds on the main branch
+# Prevent overlapping concurrent workflow executions on the main branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Default least-privilege permissions
+# Default least-privilege permissions across all jobs
 permissions:
   contents: read
 
@@ -21,9 +21,26 @@ jobs:
   ci-backend:
     name: Backend CI (Types, Build, Tests)
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      PORT: 3000
+      NODE_ENV: test
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Validate Required Database & Auth Secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Missing secret: DATABASE_URL is not configured in repository secrets."
+            exit 1
+          fi
+          if [ -z "$JWT_SECRET" ]; then
+            echo "::error::Missing secret: JWT_SECRET is not configured in repository secrets."
+            exit 1
+          fi
+          echo "✔ Verified: DATABASE_URL and JWT_SECRET are present."
 
       - name: Set up Node.js 22
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
@@ -36,26 +53,23 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
-      - name: Generate Prisma Client
+      - name: Generate Prisma Client & Verify Database Connectivity
         working-directory: ./backend
-        run: npx prisma generate
+        run: |
+          npx prisma generate
+          npx tsx -e "import { prisma } from './src/config/database'; prisma.\$queryRawUnsafe('SELECT 1').then(() => { console.log('✔ Railway database connectivity verified.'); return prisma.\$disconnect(); }).catch(err => { console.error('Database connection failed:', err.message); process.exit(1); });"
 
       - name: Verify Backend TypeScript Compilation
         working-directory: ./backend
         run: npx tsc --noEmit
 
-      - name: Build Backend Production Bundle
+      - name: Build Backend Production Distribution
         working-directory: ./backend
         run: npm run build
 
       - name: Run Backend Automated Test Suites
         working-directory: ./backend
         run: npm test
-        env:
-          NODE_ENV: test
-          PORT: 3000
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-jwt-secret-placeholder-minimum-32-chars' }}
 
   # -------------------------------------------------------------
   # Job 2: Frontend CI Validation
@@ -63,9 +77,26 @@ jobs:
   ci-frontend:
     name: Frontend CI (Types, Build, Tests)
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      PORT: 3000
+      NODE_ENV: test
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Validate Required Database & Auth Secrets
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Missing secret: DATABASE_URL is not configured in repository secrets."
+            exit 1
+          fi
+          if [ -z "$JWT_SECRET" ]; then
+            echo "::error::Missing secret: JWT_SECRET is not configured in repository secrets."
+            exit 1
+          fi
+          echo "✔ Verified: DATABASE_URL and JWT_SECRET are present."
 
       - name: Set up Node.js 22
         uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
@@ -74,11 +105,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Prepare Backend Dependencies for In-Process Test Server
+      - name: Prepare Backend Dependencies & Verify Database Connectivity
         working-directory: ./backend
         run: |
           npm ci
           npx prisma generate
+          npx tsx -e "import { prisma } from './src/config/database'; prisma.\$queryRawUnsafe('SELECT 1').then(() => { console.log('✔ Railway database connectivity verified for frontend integration tests.'); return prisma.\$disconnect(); }).catch(err => { console.error('Database connection failed:', err.message); process.exit(1); });"
 
       - name: Install Frontend Dependencies
         working-directory: ./frontend
@@ -95,11 +127,6 @@ jobs:
       - name: Run Frontend Integration & Real-Time Test Suites
         working-directory: ./frontend
         run: npm test
-        env:
-          NODE_ENV: test
-          PORT: 3000
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-test-jwt-secret-placeholder-minimum-32-chars' }}
 
   # -------------------------------------------------------------
   # Job 3: Docker Build & Publish to GHCR
@@ -111,6 +138,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: write # Required for GitHub Actions cache service (prevents HTTP 400 warnings)
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -138,8 +166,8 @@ jobs:
           tags: |
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/snack-overflow-backend:${{ github.sha }}
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/snack-overflow-backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
 
       - name: Build and Publish Frontend Docker Image
         uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
@@ -150,5 +178,5 @@ jobs:
           tags: |
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/snack-overflow-frontend:${{ github.sha }}
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/snack-overflow-frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend

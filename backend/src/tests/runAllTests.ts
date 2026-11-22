@@ -1,5 +1,8 @@
-import { spawn } from 'child_process';
+import dotenv from 'dotenv';
 import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+import { spawn } from 'child_process';
 
 function runScript(scriptPath: string): Promise<number> {
   return new Promise((resolve) => {

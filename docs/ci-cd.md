@@ -90,12 +90,36 @@ on:
   4. `npx tsx testRuntimeConfig.ts`: Validates strict runtime `window.__APP_CONFIG__` enforcement, missing configuration failure, and rejection of empty URLs.
   5. `npm test`: Runs full end-to-end integration, WebSocket optimistic UI, and Admin Activity History tests.
 
-### 4.3 Test Database Safety Policies
-The application shares a Railway PostgreSQL database:
-- **No Schema Mutations**: CI jobs never execute `prisma migrate reset` or `prisma db push`.
-- **No Destructive Statements**: No `DROP`, `TRUNCATE`, or broad `DELETE` commands are ever run.
-- **Isolated Entities**: Integration tests generate timestamp-isolated test entities (e.g. `test_user_...`) and clean them up in `finally` blocks.
-- **Preserved Seed Data**: The 4 demo snacks and 2 seeded accounts (`admin@snackoverflow.com`, `member@snackoverflow.com`) are never deleted or modified.
+### 4.3 Dedicated Test Database Architecture & Safety Enforcements
+
+To achieve complete isolation between automated tests and live data, Snack Overflow uses a **dedicated Railway PostgreSQL database exclusively for testing**:
+
+- **Production Database**: Dedicated Railway PostgreSQL instance holding live records and baseline seeded demo inventory. Configured exclusively in the Railway production environment.
+- **Automated Test Database**: Separate Railway PostgreSQL instance connected via `backend/.env` for local testing and via GitHub Actions repository secret `DATABASE_URL` for CI runs.
+
+#### Strict Safety Rules Enforced Across All Test Suites:
+- **Zero Reliance on Pre-seeded Data**: Tests are 100% self-contained and execute successfully against an initially empty database. Any required user or snack records are created dynamically with unique timestamps during test execution.
+- **Zero Schema Alterations**: The CI workflow strictly forbids and never executes `prisma migrate reset`, `prisma db push`, or automated migrations during test runs.
+- **Zero Destructive SQL Operations**: No `DROP`, `TRUNCATE`, or unconstrained `DELETE` statements exist in any test file.
+- **Strict Entity Isolation**:
+  - Every created test user, snack, and activity is prefixed with a millisecond timestamp and unique identifier (e.g. `auth_test_${timestamp}@snackoverflow.test`, `test_admin_${timestamp}`, `FE Test Pretzel ${timestamp}`).
+  - Tests only mutate or query records created by their own execution context.
+  - Aggregation tests (e.g., Snack of the Week, category filters) verify schema correctness and metric integrity without assuming preexisting production vote counts are zero.
+- **Deterministic `finally` Cleanup**:
+  - All test records created during test execution (`createdUserIds`, `createdSnackIds`, `createdActivityIds`, `createdIdempotencyKeys`) are explicitly tracked in memory and deleted in `finally` blocks targeting exact IDs.
+  - Cleanup executes even if assertions throw or tests fail.
+- **Preserved Production Baseline**:
+  - The production database is physically distinct and never touched by CI runs or automated test suites.
+- **No Automatic Seeding**: `npm run seed` or seeding scripts are never automatically triggered in CI.
+
+### 4.4 Test Database Operational Guarantees & Mitigations
+
+| Risk | Potential Impact | Operational Mitigation |
+|---|---|---|
+| **Early Job Termination** | If a GitHub Actions job is abruptly canceled or encounters a fatal SIGKILL before the `finally` block finishes, temporary test records could remain in the test database. | All test records use distinctive names (`auth_test_*`, `test_admin_*`, `FE Test Pretzel *`). Because this database is dedicated exclusively to automated testing, production is unaffected. |
+| **Concurrent CI Runs** | If multiple pushes occur simultaneously, tests could potentially run in parallel. | The workflow enforces `concurrency: group: ${{ github.workflow }}-${{ github.ref }}, cancel-in-progress: true` to serialize runs on `main` and cancel stale in-flight jobs. Dynamic timestamps also prevent row-level collisions. |
+| **Missing Secrets** | If `DATABASE_URL` or `JWT_SECRET` is omitted from repository secrets, tests could fail or produce misleading errors. | The workflow includes an early validation step (`Validate Required Database & Auth Secrets`) that halts the job immediately with clear annotations without exposing secret contents. |
+| **Database Latency / WAN Blips** | CI runners in GitHub cloud datacenters connect to Railway via public networking over WAN. | Database client connections use connection retry logic (`connectWithRetry`) and generous assertion timeouts (up to 240s) to prevent transient network false-negatives. |
 
 ---
 
@@ -120,10 +144,11 @@ The application shares a Railway PostgreSQL database:
 
 *Note*: Repository owners with uppercase characters (e.g. `M-Barath-Vikraman`) are automatically lowercased (`m-barath-vikraman`) to comply with the OCI/Docker container image specification.
 
-### 5.3 Layer Caching
+### 5.3 Layer Caching & Buildx Optimization
 Builds utilize GitHub Actions cache (`type=gha`):
-- Unchanged layers (base Alpine images, package installation steps) are restored directly from cache.
-- Dramatically accelerates build and publishing times for minor code updates.
+- **Distinct Cache Scopes**: Uses `scope=backend` and `scope=frontend` to isolate cache keys and prevent race conditions or namespace collisions between parallel image builds.
+- **Required Workflow Permissions**: Job is granted `actions: write` permission to authorize reads and writes against the GitHub Actions Cache API, avoiding HTTP 400 cache warnings.
+- Unchanged layers (base Alpine images, package installation steps) are restored directly from cache, accelerating publishing times.
 
 ---
 

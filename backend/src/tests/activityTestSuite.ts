@@ -9,6 +9,7 @@ import { AddressInfo } from 'net';
 import { app } from '../app';
 import { prisma } from '../config/database';
 import { generateToken } from '../utils/jwt';
+import { hashPassword } from '../utils/password';
 
 const TEST_TIMEOUT_MS = 240000;
 const testTimer = setTimeout(() => {
@@ -55,34 +56,60 @@ async function main() {
   const baseUrl = `http://localhost:${port}/api`;
 
   const createdActivityIds: string[] = [];
+  const createdUserIds: string[] = [];
+  const createdSnackIds: string[] = [];
 
   let testError: any = null;
 
   try {
-    // 1. Fetch legitimate test users and a demo snack
-    const adminUser = await prisma.user.findUnique({
-      where: { email: 'admin@snackoverflow.com' },
-    });
-    const memberUser = await prisma.user.findUnique({
-      where: { email: 'member@snackoverflow.com' },
-    });
-    const demoSnack = await prisma.snack.findFirst({
-      where: { name: 'Wasabi Peas' },
-    });
+    const timestamp = Date.now();
+    const testAdminPassword = 'AdminPassword123!';
+    const testMemberPassword = 'MemberPassword123!';
 
-    assert(!!adminUser, 'Admin user (admin@snackoverflow.com) exists');
-    assert(!!memberUser, 'Member user (member@snackoverflow.com) exists');
-    assert(!!demoSnack, 'Demo snack (Wasabi Peas) exists');
+    // 1. Create isolated test users and test snack
+    const adminUser = await prisma.user.create({
+      data: {
+        name: `Activity Test Admin ${timestamp}`,
+        email: `act_admin_${timestamp}@snackoverflow.test`,
+        password: await hashPassword(testAdminPassword),
+        role: 'ADMIN',
+      },
+    });
+    createdUserIds.push(adminUser.id);
+
+    const memberUser = await prisma.user.create({
+      data: {
+        name: `Activity Test Member ${timestamp}`,
+        email: `act_member_${timestamp}@snackoverflow.test`,
+        password: await hashPassword(testMemberPassword),
+        role: 'MEMBER',
+      },
+    });
+    createdUserIds.push(memberUser.id);
+
+    const demoSnack = await prisma.snack.create({
+      data: {
+        name: `Activity Test Snack ${timestamp}`,
+        category: 'SAVOURY',
+        quantity: 20,
+        lowStockThreshold: 5,
+      },
+    });
+    createdSnackIds.push(demoSnack.id);
+
+    assert(!!adminUser, 'Admin user created for activity test suite');
+    assert(!!memberUser, 'Member user created for activity test suite');
+    assert(!!demoSnack, 'Test snack created for activity test suite');
 
     const adminToken = generateToken({
-      userId: adminUser!.id,
-      email: adminUser!.email,
+      userId: adminUser.id,
+      email: adminUser.email,
       role: 'ADMIN',
     });
 
     const memberToken = generateToken({
-      userId: memberUser!.id,
-      email: memberUser!.email,
+      userId: memberUser.id,
+      email: memberUser.email,
       role: 'MEMBER',
     });
 
@@ -220,7 +247,7 @@ async function main() {
     );
 
     // 4.3 Search by User Name
-    const searchNameRes = await request(`${baseUrl}/activities?search=${encodeURIComponent(memberUser!.name)}`, {
+    const searchNameRes = await request(`${baseUrl}/activities?search=${encodeURIComponent(memberUser.name)}`, {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
     assert(searchNameRes.status === 200, 'Search by user name returns 200');
@@ -230,7 +257,7 @@ async function main() {
     );
 
     // 4.4 Search by User Email
-    const searchEmailRes = await request(`${baseUrl}/activities?search=member@snackoverflow.com`, {
+    const searchEmailRes = await request(`${baseUrl}/activities?search=${encodeURIComponent(memberUser.email)}`, {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
     assert(searchEmailRes.status === 200, 'Search by user email returns 200');
@@ -240,7 +267,7 @@ async function main() {
     );
 
     // 4.5 Search by Snack Name
-    const searchSnackRes = await request(`${baseUrl}/activities?search=Wasabi`, {
+    const searchSnackRes = await request(`${baseUrl}/activities?search=${encodeURIComponent(demoSnack.name)}`, {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
     assert(searchSnackRes.status === 200, 'Search by snack name returns 200');
@@ -307,18 +334,28 @@ async function main() {
     testError = err;
   } finally {
     // -------------------------------------------------------------
-    // DB Clean up: Delete only created test activities
+    // DB Clean up: Delete only created test activities, snacks, users
     // -------------------------------------------------------------
-    if (createdActivityIds.length > 0) {
-      let testError: any = null;
-
-  try {
-        await prisma.activity.deleteMany({
-          where: { id: { in: createdActivityIds } },
-        });
-        console.log(`\n✔ Cleaned up ${createdActivityIds.length} test activity records from database`);
-      } catch (cleanErr) {
-        console.error('Failed to clean up test activities:', cleanErr);
+    if (createdActivityIds.length > 0 || createdSnackIds.length > 0 || createdUserIds.length > 0) {
+      try {
+        if (createdActivityIds.length > 0) {
+          await prisma.activity.deleteMany({
+            where: { id: { in: createdActivityIds } },
+          });
+        }
+        if (createdSnackIds.length > 0) {
+          await prisma.snack.deleteMany({
+            where: { id: { in: createdSnackIds } },
+          });
+        }
+        if (createdUserIds.length > 0) {
+          await prisma.user.deleteMany({
+            where: { id: { in: createdUserIds } },
+          });
+        }
+        console.log(`\n✔ Cleaned up isolated test records (activities: ${createdActivityIds.length}, snacks: ${createdSnackIds.length}, users: ${createdUserIds.length})`);
+      } catch (cleanErr: any) {
+        console.error('Failed to clean up test activities:', cleanErr.message);
       }
     }
 

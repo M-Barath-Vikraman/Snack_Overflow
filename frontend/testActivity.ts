@@ -1,8 +1,18 @@
 // Frontend Admin Activity History Verification
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../backend/.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
 import http from 'http';
 import { AddressInfo } from 'net';
 import { app } from '../backend/src/app';
 import { prisma } from '../backend/src/config/database';
+import { hashPassword } from '../backend/src/utils/password';
 import activityService from './src/services/activityService';
 import authService from './src/services/authService';
 import apiClient from './src/services/apiClient';
@@ -42,6 +52,8 @@ async function runActivityFrontendTests() {
   const serverApiUrl = `http://localhost:${port}/api`;
 
   const createdActivityIds: string[] = [];
+  const createdUserIds: string[] = [];
+  const createdSnackIds: string[] = [];
 
   let testError: any = null;
 
@@ -54,19 +66,50 @@ async function runActivityFrontendTests() {
       },
     };
 
-    const adminUser = await prisma.user.findUnique({ where: { email: 'admin@snackoverflow.com' } });
-    const memberUser = await prisma.user.findUnique({ where: { email: 'member@snackoverflow.com' } });
-    const demoSnack = await prisma.snack.findFirst({ where: { name: 'Wasabi Peas' } });
+    const timestamp = Date.now();
+    const testAdminPassword = 'AdminPassword123!';
+    const testMemberPassword = 'MemberPassword123!';
 
-    assert(!!adminUser, 'Admin user exists in database');
-    assert(!!memberUser, 'Member user exists in database');
-    assert(!!demoSnack, 'Demo snack exists in database');
+    // Create isolated test users and test snack
+    const adminUser = await prisma.user.create({
+      data: {
+        name: `Frontend Admin ${timestamp}`,
+        email: `fe_act_admin_${timestamp}@snackoverflow.test`,
+        password: await hashPassword(testAdminPassword),
+        role: 'ADMIN',
+      },
+    });
+    createdUserIds.push(adminUser.id);
+
+    const memberUser = await prisma.user.create({
+      data: {
+        name: `Frontend Member ${timestamp}`,
+        email: `fe_act_member_${timestamp}@snackoverflow.test`,
+        password: await hashPassword(testMemberPassword),
+        role: 'MEMBER',
+      },
+    });
+    createdUserIds.push(memberUser.id);
+
+    const demoSnack = await prisma.snack.create({
+      data: {
+        name: `FE Activity Snack ${timestamp}`,
+        category: 'SAVOURY',
+        quantity: 20,
+        lowStockThreshold: 5,
+      },
+    });
+    createdSnackIds.push(demoSnack.id);
+
+    assert(!!adminUser, 'Admin user created in database');
+    assert(!!memberUser, 'Member user created in database');
+    assert(!!demoSnack, 'Demo snack created in database');
 
     // Create 2 test activities for service verification
     const act1 = await prisma.activity.create({
       data: {
-        userId: memberUser!.id,
-        snackId: demoSnack!.id,
+        userId: memberUser.id,
+        snackId: demoSnack.id,
         action: 'CONSUMED',
         amount: 3,
       },
@@ -75,8 +118,8 @@ async function runActivityFrontendTests() {
 
     const act2 = await prisma.activity.create({
       data: {
-        userId: adminUser!.id,
-        snackId: demoSnack!.id,
+        userId: adminUser.id,
+        snackId: demoSnack.id,
         action: 'RESTOCKED',
         amount: 12,
       },
@@ -97,8 +140,8 @@ async function runActivityFrontendTests() {
     // -------------------------------------------------------------
     console.log('\n--- 2. Member User Role Guard Verification ---');
     const memberLoginRes = await authService.login(
-      'member@snackoverflow.com',
-      'MemberPassword123!'
+      memberUser.email,
+      testMemberPassword
     );
     assert(memberLoginRes.success, 'Member user logged in successfully');
     assert(memberLoginRes.data?.user.role === 'MEMBER', 'User role is confirmed MEMBER');
@@ -112,8 +155,8 @@ async function runActivityFrontendTests() {
     // -------------------------------------------------------------
     console.log('\n--- 3. Admin User Activity Service Verification ---');
     const adminLoginRes = await authService.login(
-      'admin@snackoverflow.com',
-      'AdminPassword123!'
+      adminUser.email,
+      testAdminPassword
     );
     assert(adminLoginRes.success, 'Admin user logged in successfully');
     assert(adminLoginRes.data?.user.role === 'ADMIN', 'User role is confirmed ADMIN');
@@ -150,7 +193,7 @@ async function runActivityFrontendTests() {
     );
 
     // 3.4 Search filter
-    const searchRes = await activityService.getActivities({ search: 'Wasabi' });
+    const searchRes = await activityService.getActivities({ search: demoSnack.name });
     assert(searchRes.success === true, 'getActivities with search filter succeeds');
     assert(
       searchRes.data?.activities.some((a) => a.id === act1.id),
@@ -181,17 +224,27 @@ async function runActivityFrontendTests() {
     console.error('Frontend activity test failure:', err);
     testError = err;
   } finally {
-    // Clean up created test activities
-    if (createdActivityIds.length > 0) {
-      let testError: any = null;
-
-  try {
-        await prisma.activity.deleteMany({
-          where: { id: { in: createdActivityIds } },
-        });
-        console.log(`\n✔ Cleaned up ${createdActivityIds.length} test activity records`);
-      } catch (cleanErr) {
-        console.error('Failed to cleanup activities:', cleanErr);
+    // Clean up created test activities, snacks, and users
+    if (createdActivityIds.length > 0 || createdSnackIds.length > 0 || createdUserIds.length > 0) {
+      try {
+        if (createdActivityIds.length > 0) {
+          await prisma.activity.deleteMany({
+            where: { id: { in: createdActivityIds } },
+          });
+        }
+        if (createdSnackIds.length > 0) {
+          await prisma.snack.deleteMany({
+            where: { id: { in: createdSnackIds } },
+          });
+        }
+        if (createdUserIds.length > 0) {
+          await prisma.user.deleteMany({
+            where: { id: { in: createdUserIds } },
+          });
+        }
+        console.log(`\n✔ Cleaned up isolated test records (activities: ${createdActivityIds.length}, snacks: ${createdSnackIds.length}, users: ${createdUserIds.length})`);
+      } catch (cleanErr: any) {
+        console.error('Failed to cleanup activities:', cleanErr.message);
       }
     }
     server.close();
