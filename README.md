@@ -25,8 +25,8 @@ A modern, full-stack snack management system designed for team offices and colla
 - [x] **Phase 1 — Project Foundation & Initial Migration** (Completed & Verified)
 - [x] **Phase 2 — Backend Core APIs** (Completed & Verified with 60 automated tests)
 - [x] **Phase 3 — Authentication & User Management** (Completed & Verified with 48 automated tests)
-- [ ] **Phase 4 — Frontend Dashboard & UI** (Pending Approval)
-- [ ] **Phase 5 — Real-time WebSockets & Optimistic UI** (Pending)
+- [x] **Phase 4 — Frontend Dashboard & UI** (Completed & Verified with 30 frontend tests)
+- [ ] **Phase 5 — Real-time WebSockets & Optimistic UI** (Pending Approval)
 - [ ] **Phase 6 — Docker & CI/CD Deployment** (Pending)
 
 ---
@@ -68,6 +68,23 @@ Run the automated backend test suite:
 cd backend
 npm test
 ```
+
+### Initial Demo Seed Data
+To seed initial demo accounts and snacks idempotently:
+```bash
+cd backend
+npm run seed
+```
+
+**Seeded Accounts**:
+- Admin: `admin@snackoverflow.com` (`AdminPassword123!`)
+- Member: `member@snackoverflow.com` (`MemberPassword123!`)
+
+**Seeded Inventory**:
+- Dark Chocolate Almonds (SWEET, Qty: 24, Threshold: 5)
+- Wasabi Peas (SAVOURY, Qty: 18, Threshold: 5)
+- Sparkling Lime Water (DRINK, Qty: 12, Threshold: 6)
+- Roasted Seaweed Crisps (HEALTHY_ISH, Qty: 15, Threshold: 4)
 
 ### Verified Test Coverage (55 passing assertions):
 1. **Authorization & RBAC**: Admin-only route protection, member route access, unauthenticated request rejection.

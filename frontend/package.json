@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "..\\backend\\node_modules\\.bin\\tsx testRuntimeConfig.ts",
+    "test": "..\\backend\\node_modules\\.bin\\tsx runTests.ts",
     "preview": "vite preview"
   },
   "dependencies": {

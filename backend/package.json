@@ -11,7 +11,11 @@
     "test:auth": "tsx src/tests/authTestSuite.ts",
     "test:api": "tsx src/tests/apiTestSuite.ts",
     "prisma:generate": "prisma generate",
-    "prisma:validate": "prisma validate"
+    "prisma:validate": "prisma validate",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

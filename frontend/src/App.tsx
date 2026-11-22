@@ -1,114 +1,141 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { getApiBaseUrl } from './config/env';
-import { apiClient } from './services/apiClient';
-import { HealthStatus } from './types';
+import { useAuth } from './context/AuthContext';
+import Layout from './components/Layout';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import DashboardPage from './pages/DashboardPage';
+import InventoryPage from './pages/InventoryPage';
+import AddEditSnackModal from './components/AddEditSnackModal';
 
 export const App: React.FC = () => {
-  const [health, setHealth] = useState<HealthStatus | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  let activeApiUrl = '';
+  // 1. Strict Runtime Configuration Check
   let configError: string | null = null;
-
   try {
-    activeApiUrl = getApiBaseUrl();
+    getApiBaseUrl();
   } catch (err: any) {
     configError = err.message;
   }
 
-  useEffect(() => {
-    async function fetchHealth() {
-      if (configError) {
-        setLoading(false);
-        setError(configError);
-        return;
-      }
-
-      try {
-        setLoading(true);
-        // Uses the centralized API client foundation
-        const res = await apiClient.get<HealthStatus>('/health');
-        if (res.success && res.data) {
-          setHealth(res.data);
-          setError(null);
-        } else {
-          setError(res.message || 'Failed to reach backend service');
-        }
-      } catch (err: any) {
-        setError(err.message || 'Error connecting to backend');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchHealth();
-  }, [configError]);
-
-  return (
-    <div style={{ fontFamily: 'system-ui, -apple-system, sans-serif', margin: '2rem auto', maxWidth: '800px', padding: '0 1rem', color: '#1e293b' }}>
-      <header style={{ borderBottom: '2px solid #e2e8f0', paddingBottom: '1rem', marginBottom: '2rem' }}>
-        <h1 style={{ color: '#0f172a', margin: '0 0 0.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          🍿 Snack Overflow
-        </h1>
-        <p style={{ color: '#64748b', margin: 0 }}>
-          Phase 2: Backend Core APIs Completed
-        </p>
-      </header>
-
-      <main>
-        <section style={{ background: '#f8fafc', borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem', border: '1px solid #e2e8f0' }}>
-          <h2 style={{ fontSize: '1.25rem', marginTop: 0, color: '#334155' }}>
-            Runtime Environment Configuration
+  // If runtime configuration in window.__APP_CONFIG__ is missing or malformed, display error boundary
+  if (configError) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f8fafc',
+          padding: '1.5rem',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: '540px',
+            width: '100%',
+            background: '#ffffff',
+            borderRadius: '12px',
+            padding: '2rem',
+            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+            border: '1px solid #fecaca',
+          }}
+        >
+          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>⚙️</div>
+          <h2 style={{ color: '#991b1b', margin: '0 0 0.5rem 0', fontSize: '1.4rem' }}>
+            Configuration Error
           </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', rowGap: '0.5rem', fontSize: '0.95rem' }}>
-            <strong>Active API Base URL:</strong>
-            {configError ? (
-              <span style={{ color: '#dc2626', fontWeight: 600 }}>{configError}</span>
-            ) : (
-              <code>{activeApiUrl}</code>
-            )}
-            <strong>Config Mode:</strong>
-            <span>Runtime Window Object (public/config.js is source of truth)</span>
+          <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: 1.5 }}>
+            Snack Overflow requires a valid runtime configuration file to communicate with the API.
+          </p>
+          <div
+            style={{
+              background: '#fef2f2',
+              border: '1px solid #fca5a5',
+              padding: '0.85rem 1rem',
+              borderRadius: '6px',
+              color: '#991b1b',
+              fontSize: '0.875rem',
+              fontFamily: 'monospace',
+              margin: '1rem 0',
+            }}
+          >
+            {configError}
           </div>
-        </section>
+          <p style={{ color: '#64748b', fontSize: '0.85rem', margin: 0 }}>
+            Ensure <code>public/config.js</code> is accessible and sets{' '}
+            <code>window.__APP_CONFIG__.API_BASE_URL</code>.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-        <section style={{ background: '#f8fafc', borderRadius: '8px', padding: '1.5rem', border: '1px solid #e2e8f0' }}>
-          <h2 style={{ fontSize: '1.25rem', marginTop: 0, color: '#334155' }}>
-            Backend Service Status
-          </h2>
-          {loading && <p style={{ color: '#64748b' }}>Checking backend health...</p>}
-          {error && (
-            <div style={{ padding: '0.75rem 1rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b' }}>
-              <strong>Backend Offline or Unreachable:</strong> {error}
-              <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.85rem' }}>
-                Start the backend server on <code>http://localhost:3000</code> to verify connectivity.
-              </p>
-            </div>
-          )}
-          {health && (
-            <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr', rowGap: '0.5rem', fontSize: '0.95rem' }}>
-              <strong>Status:</strong>
-              <span style={{ color: health.status === 'healthy' ? '#16a34a' : '#d97706', fontWeight: 600 }}>
-                {health.status.toUpperCase()}
-              </span>
-              <strong>Environment:</strong>
-              <span>{health.environment}</span>
-              <strong>Database:</strong>
-              <span>
-                {health.database.status} {health.database.configured ? '(Connected to Railway)' : '(Unconfigured)'}
-              </span>
-              <strong>Uptime:</strong>
-              <span>{health.uptimeSeconds}s</span>
-            </div>
-          )}
-        </section>
-      </main>
+  // 2. Authentication State Handling
+  const { isAuthenticated, isLoading, isAdmin } = useAuth();
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [currentPage, setCurrentPage] = useState<'dashboard' | 'inventory'>('dashboard');
 
-      <footer style={{ marginTop: '3rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0', color: '#94a3b8', fontSize: '0.875rem' }}>
-        Snack Overflow &copy; 2026 &bull; Ready for Phase 3
-      </footer>
-    </div>
+  // Global Add Snack Modal state (opened from Sidebar or elsewhere)
+  const [isAddSnackModalOpen, setIsAddSnackModalOpen] = useState<boolean>(false);
+  const [inventoryRefreshKey, setInventoryRefreshKey] = useState<number>(0);
+
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f8fafc',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+        }}
+      >
+        <div style={{ fontSize: '3rem', animation: 'bounce 1s infinite' }}>🍿</div>
+        <p style={{ marginTop: '1rem', color: '#64748b', fontWeight: 500 }}>
+          Initializing Snack Overflow...
+        </p>
+      </div>
+    );
+  }
+
+  // 3. Unauthenticated Views
+  if (!isAuthenticated) {
+    if (authView === 'register') {
+      return <RegisterPage onNavigateToLogin={() => setAuthView('login')} />;
+    }
+    return <LoginPage onNavigateToRegister={() => setAuthView('register')} />;
+  }
+
+  // 4. Authenticated SaaS Application
+  return (
+    <Layout
+      currentPage={currentPage}
+      onNavigate={setCurrentPage}
+      onOpenAddSnack={isAdmin ? () => setIsAddSnackModalOpen(true) : undefined}
+    >
+      {currentPage === 'dashboard' ? (
+        <DashboardPage onNavigateToInventory={() => setCurrentPage('inventory')} />
+      ) : (
+        <InventoryPage key={inventoryRefreshKey} />
+      )}
+
+      {/* Admin Add Snack Modal from Sidebar Action */}
+      {isAdmin && (
+        <AddEditSnackModal
+          isOpen={isAddSnackModalOpen}
+          onClose={() => setIsAddSnackModalOpen(false)}
+          snack={null}
+          onSaved={() => {
+            setInventoryRefreshKey((k) => k + 1);
+            setCurrentPage('inventory');
+          }}
+        />
+      )}
+    </Layout>
   );
 };
 

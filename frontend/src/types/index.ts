@@ -11,6 +11,8 @@ export interface User {
   name: string;
   email: string;
   role: RoleType;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Snack {
@@ -22,6 +24,8 @@ export interface Snack {
   status: SnackStatusType;
   voteCount?: number;
   hasUserVoted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface ApiResponse<T = any> {
@@ -33,6 +37,49 @@ export interface ApiResponse<T = any> {
     details?: any;
   };
   timestamp: string;
+}
+
+export interface AuthResponseData {
+  user: User;
+  token: string;
+}
+
+export interface PaginationData {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface SnacksListData {
+  snacks: Snack[];
+  pagination: PaginationData;
+}
+
+export interface DashboardSummaryData {
+  totalSnacks: number;
+  inStockCount: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  snackOfTheWeek: {
+    id: string;
+    name: string;
+    category: SnackCategoryType;
+    quantity: number;
+    lowStockThreshold: number;
+    status: SnackStatusType;
+    voteCount: number;
+  } | null;
+}
+
+export interface SnackFilterParams {
+  search?: string;
+  category?: SnackCategoryType;
+  status?: SnackStatusType;
+  page?: number;
+  limit?: number;
+  sortBy?: 'name' | 'category' | 'quantity' | 'createdAt';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface HealthStatus {
