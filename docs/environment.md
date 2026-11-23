@@ -93,6 +93,13 @@ When running inside Docker or deploying to Railway, the frontend container accep
 | `API_BASE_URL` | Frontend browser API endpoint in `config.js` (Optional, defaults to `/api` so browser calls route through Nginx reverse proxy) | `/api` | `/api` |
 | `WS_URL` | Frontend browser WebSocket endpoint in `config.js` (Optional, defaults to frontend origin with `/ws`) | `wss://${window.location.host}/ws` (automatic) | `ws://localhost:8080/ws` (automatic) |
 
+### Local Development Proxy (`frontend/vite.config.ts`)
+During local development with the Vite dev server (`npm run dev`), Vite proxies requests to the local backend:
+- `/api` requests are proxied to `BACKEND_URL` (defaults to `http://localhost:3000`).
+- `/ws` WebSocket connections are proxied to `BACKEND_URL` with WebSocket upgrades (`ws: true`) enabled.
+
+This mirrors the production Nginx reverse proxy architecture locally, ensuring browser clients always call same-origin endpoints (`/api` and `/ws`) without requiring hardcoded backend URLs.
+
 ### Why Strict Runtime Configuration?
 1. **Single Source of Truth**: `public/config.js` is the sole source of truth for `API_BASE_URL` and `WS_URL`.
 2. **Zero Build-Time Fallbacks**: To prevent silent fallback to `localhost:3000` or stale environment URLs in staging/production, build-time variables (`import.meta.env.VITE_API_BASE_URL`) and hardcoded fallback strings have been completely removed.

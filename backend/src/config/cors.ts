@@ -2,15 +2,27 @@ import { config } from './env';
 
 /**
  * Returns an array of normalized allowed origins configured for the application.
+ * Checks FRONTEND_ORIGIN and FRONTEND_URL from process.env and config.
  * Normalization removes trailing slashes and trims whitespace.
  * Wildcard '*' is strictly filtered out to prevent arbitrary origin acceptance.
  */
 export function getAllowedOrigins(): string[] {
-  const rawOrigins = config.frontendOrigin || config.frontendUrl || '';
-  return rawOrigins
-    .split(',')
-    .map((origin) => origin.trim().replace(/\/+$/, ''))
-    .filter((origin) => origin.length > 0 && origin !== '*');
+  const sources = [
+    process.env.FRONTEND_ORIGIN,
+    config.frontendOrigin,
+    process.env.FRONTEND_URL,
+    config.frontendUrl,
+  ].filter((val): val is string => typeof val === 'string' && val.trim().length > 0);
+
+  const rawOrigins = sources.join(',');
+  return Array.from(
+    new Set(
+      rawOrigins
+        .split(',')
+        .map((origin) => origin.trim().replace(/\/+$/, ''))
+        .filter((origin) => origin.length > 0 && origin !== '*')
+    )
+  );
 }
 
 /**
