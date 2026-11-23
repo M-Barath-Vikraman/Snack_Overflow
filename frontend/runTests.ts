@@ -7,11 +7,17 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../backend/.env') });
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+import fs from 'fs';
 import { spawn } from 'child_process';
 
 function runScript(scriptPath: string): Promise<number> {
+  const tsxCli = path.resolve(__dirname, '../backend/node_modules/tsx/dist/cli.mjs');
+  const useLocalCli = fs.existsSync(tsxCli);
+  const command = useLocalCli ? 'node' : 'npx';
+  const args = useLocalCli ? [tsxCli, scriptPath] : ['tsx', scriptPath];
+
   return new Promise((resolve) => {
-    const child = spawn('npx', ['tsx', scriptPath], {
+    const child = spawn(command, args, {
       stdio: 'inherit',
       shell: true,
       cwd: process.cwd(),

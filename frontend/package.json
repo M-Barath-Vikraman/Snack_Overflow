@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "npx tsx runTests.ts",
+    "test": "node ../backend/node_modules/tsx/dist/cli.mjs runTests.ts",
     "preview": "vite preview"
   },
   "dependencies": {

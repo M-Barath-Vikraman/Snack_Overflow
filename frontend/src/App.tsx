@@ -120,7 +120,11 @@ export const App: React.FC = () => {
       onOpenAddSnack={isAdmin ? () => setIsAddSnackModalOpen(true) : undefined}
     >
       {currentPage === 'dashboard' && (
-        <DashboardPage onNavigateToInventory={() => setCurrentPage('inventory')} />
+        <DashboardPage
+          onNavigateToInventory={() => setCurrentPage('inventory')}
+          onNavigateToActivity={() => setCurrentPage('activity')}
+          onOpenAddSnack={isAdmin ? () => setIsAddSnackModalOpen(true) : undefined}
+        />
       )}
       {currentPage === 'inventory' && (
         <InventoryPage key={inventoryRefreshKey} />

@@ -32,7 +32,7 @@ export const ActivityPage: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchInput);
-      setCurrentPage(1); // Reset to page 1 on new search
+      setCurrentPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
@@ -98,7 +98,7 @@ export const ActivityPage: React.FC = () => {
     };
   }, [subscribe, triggerDebouncedRefresh]);
 
-  // Reconnection reconciliation: refresh data when connection recovers
+  // Reconnection reconciliation
   useEffect(() => {
     if (
       wsStatus === 'connected' &&
@@ -163,9 +163,9 @@ export const ActivityPage: React.FC = () => {
     <div className="page-container">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Activity History</h1>
+          <h1 className="page-title">Activity Audit Trail</h1>
           <p className="page-subtitle">
-            Audit log of snack consumption and inventory restocks across the team
+            Comprehensive audit log of snack consumption and restocking activities across the team
           </p>
         </div>
         <button
@@ -175,7 +175,7 @@ export const ActivityPage: React.FC = () => {
           disabled={loading}
           title="Refresh activity logs"
         >
-          🔄 Refresh
+          🔄 Refresh Log
         </button>
       </div>
 
@@ -223,8 +223,8 @@ export const ActivityPage: React.FC = () => {
             aria-label="Filter by action"
           >
             <option value="ALL">All Actions</option>
-            <option value="CONSUMED">Consumed</option>
-            <option value="RESTOCKED">Restocked</option>
+            <option value="CONSUMED">😋 Consumed Only</option>
+            <option value="RESTOCKED">📦 Restocked Only</option>
           </select>
 
           {/* Sort By */}
@@ -236,8 +236,8 @@ export const ActivityPage: React.FC = () => {
           >
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
-            <option value="highest_amount">Highest Amount</option>
-            <option value="lowest_amount">Lowest Amount</option>
+            <option value="highest_amount">Highest Quantity</option>
+            <option value="lowest_amount">Lowest Quantity</option>
           </select>
         </div>
       </div>
@@ -261,11 +261,9 @@ export const ActivityPage: React.FC = () => {
 
       {/* Loading state indicator */}
       {loading && (
-        <div style={{ textAlign: 'center', padding: '2rem 0', color: '#64748b' }}>
-          <div style={{ fontSize: '2rem', animation: 'spin 1s linear infinite', display: 'inline-block' }}>
-            ⏳
-          </div>
-          <p style={{ marginTop: '0.5rem', fontSize: '0.9rem' }}>Loading activity logs...</p>
+        <div style={{ textAlign: 'center', padding: '4rem 0', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: '2.5rem', animation: 'bounce 1s infinite' }}>🍿</div>
+          <p style={{ marginTop: '0.75rem', fontSize: '0.9rem', fontWeight: 500 }}>Loading activity logs...</p>
         </div>
       )}
 
@@ -276,17 +274,18 @@ export const ActivityPage: React.FC = () => {
             background: 'var(--surface)',
             border: '1px solid var(--border)',
             borderRadius: 'var(--radius-md)',
-            padding: '3rem 1.5rem',
+            padding: '3.5rem 1.5rem',
             textAlign: 'center',
+            boxShadow: 'var(--shadow-card)',
           }}
         >
           <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📋</div>
-          <h3 style={{ color: 'var(--text-main)', margin: '0 0 0.5rem 0', fontSize: '1.2rem' }}>
+          <h3 style={{ color: 'var(--text-main)', margin: '0 0 0.5rem 0', fontSize: '1.2rem', fontWeight: 700 }}>
             No activity records found
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', maxWidth: '420px', margin: '0 auto 1.25rem auto' }}>
             {searchInput || actionFilter !== 'ALL'
-              ? 'No activity matches your current filters. Try clearing your search or selecting all actions.'
+              ? 'No activity matches your current filters. Try clearing your search query or selecting all actions.'
               : 'No snack consumption or restock activities have been recorded yet.'}
           </p>
           {(searchInput || actionFilter !== 'ALL') && (
@@ -305,17 +304,17 @@ export const ActivityPage: React.FC = () => {
         </div>
       )}
 
-      {/* Activity Table */}
+      {/* Activity Table (Desktop & Tablet) */}
       {!loading && !error && activities.length > 0 && (
         <div className="table-container">
           <table className="data-table">
             <thead>
               <tr>
                 <th>Date & Time</th>
-                <th>User</th>
+                <th>Team Member</th>
                 <th>Action</th>
                 <th>Snack</th>
-                <th style={{ textAlign: 'right' }}>Amount</th>
+                <th style={{ textAlign: 'right' }}>Quantity</th>
               </tr>
             </thead>
             <tbody>
@@ -330,7 +329,7 @@ export const ActivityPage: React.FC = () => {
                       <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
                         {act.user ? act.user.name : 'Unknown User'}
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                         {act.user ? act.user.email : '—'}
                       </div>
                     </td>
@@ -347,7 +346,7 @@ export const ActivityPage: React.FC = () => {
                         {act.snack && <CategoryBadge category={act.snack.category} />}
                       </div>
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                    <td style={{ textAlign: 'right', fontWeight: 800 }}>
                       <span style={{ color: isConsumed ? '#dc2626' : '#059669' }}>
                         {isConsumed ? `-${act.amount}` : `+${act.amount}`}
                       </span>
@@ -357,6 +356,41 @@ export const ActivityPage: React.FC = () => {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Mobile Card Layout (visible on narrow screens <= 768px) */}
+      {!loading && !error && activities.length > 0 && (
+        <div className="activity-mobile-list">
+          {activities.map((act) => {
+            const isConsumed = act.action === 'CONSUMED';
+            return (
+              <div key={act.id} className="activity-mobile-card">
+                <div className="activity-mobile-card-header">
+                  <span className={`action-badge ${isConsumed ? 'consumed' : 'restocked'}`}>
+                    {isConsumed ? '😋 Consumed' : '📦 Restocked'}
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: '1rem', color: isConsumed ? '#dc2626' : '#059669' }}>
+                    {isConsumed ? `-${act.amount}` : `+${act.amount}`}
+                  </span>
+                </div>
+                <div className="activity-mobile-card-row">
+                  <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                    {act.snack ? act.snack.name : 'Deleted Snack'}
+                  </span>
+                  {act.snack && <CategoryBadge category={act.snack.category} />}
+                </div>
+                <div className="activity-mobile-card-row">
+                  <span style={{ color: 'var(--text-muted)' }}>User:</span>
+                  <span style={{ fontWeight: 500 }}>{act.user ? act.user.name : 'Unknown User'}</span>
+                </div>
+                <div className="activity-mobile-card-row">
+                  <span style={{ color: 'var(--text-muted)' }}>Date:</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{formatDate(act.createdAt)}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
