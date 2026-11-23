@@ -3,6 +3,7 @@ import { snackController } from '../controllers/snackController';
 import { authenticate, optionalAuthenticate } from '../middleware/authMiddleware';
 import { requireRole } from '../middleware/roleMiddleware';
 import { validateRequest } from '../middleware/validateMiddleware';
+import { imageUploadMiddleware } from '../middleware/uploadMiddleware';
 import {
   listSnacksSchema,
   snackIdParamSchema,
@@ -91,6 +92,25 @@ router.delete(
   authenticate,
   validateRequest(snackIdParamSchema),
   snackController.removeVote
+);
+
+// 11. Upload/replace snack image (Admin only)
+router.post(
+  '/:id/image',
+  authenticate,
+  requireRole(['ADMIN']),
+  validateRequest(snackIdParamSchema),
+  imageUploadMiddleware,
+  snackController.uploadImage
+);
+
+// 12. Delete snack image (Admin only)
+router.delete(
+  '/:id/image',
+  authenticate,
+  requireRole(['ADMIN']),
+  validateRequest(snackIdParamSchema),
+  snackController.deleteImage
 );
 
 export default router;

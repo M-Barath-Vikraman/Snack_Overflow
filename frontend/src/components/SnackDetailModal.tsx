@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Snack } from '../types';
 import Modal from './Modal';
 import StatusBadge from './StatusBadge';
@@ -16,6 +16,24 @@ interface SnackDetailModalProps {
   onOpenDelete?: (snack: Snack) => void;
 }
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+const getCategoryEmoji = (category: string) => {
+  switch (category) {
+    case 'SWEET':
+      return '🍬';
+    case 'SAVOURY':
+      return '🥨';
+    case 'DRINK':
+      return '🥤';
+    case 'HEALTHY_ISH':
+      return '🥗';
+    default:
+      return '🍿';
+  }
+};
+
 export const SnackDetailModal: React.FC<SnackDetailModalProps> = ({
   snack,
   isOpen,
@@ -31,6 +49,33 @@ export const SnackDetailModal: React.FC<SnackDetailModalProps> = ({
   const [voting, setVoting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Image state
+  const [imageError, setImageError] = useState<boolean>(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState<boolean>(false);
+  const [imageOperationError, setImageOperationError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setImageError(false);
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setImageOperationError(null);
+    setError(null);
+    setSuccessMsg(null);
+  }, [snack?.id, isOpen]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(selectedFile);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [selectedFile]);
 
   if (!snack) return null;
 
@@ -90,10 +135,105 @@ export const SnackDetailModal: React.FC<SnackDetailModalProps> = ({
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImageOperationError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      setImageOperationError('Invalid file type. Only JPEG, PNG, and WebP images are allowed.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setImageOperationError('File size exceeds the 5 MB maximum limit.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const handleUploadImage = async () => {
+    if (!selectedFile) return;
+
+    setImageLoading(true);
+    setImageOperationError(null);
+
+    try {
+      const res = await snackService.uploadImage(snack.id, selectedFile);
+      if (res.success && res.data) {
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setImageError(false);
+        setSuccessMsg('Snack image uploaded successfully.');
+        onSnackUpdated();
+      } else {
+        setImageOperationError(res.message || 'Failed to upload snack image.');
+      }
+    } catch (err: any) {
+      setImageOperationError(err.message || 'Network error uploading image.');
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  const handleDeleteImage = async () => {
+    if (!window.confirm('Are you sure you want to remove the image for this snack?')) {
+      return;
+    }
+
+    setImageLoading(true);
+    setImageOperationError(null);
+
+    try {
+      const res = await snackService.deleteImage(snack.id);
+      if (res.success) {
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        setImageError(false);
+        setSuccessMsg('Snack image removed.');
+        onSnackUpdated();
+      } else {
+        setImageOperationError(res.message || 'Failed to remove image.');
+      }
+    } catch (err: any) {
+      setImageOperationError(err.message || 'Network error removing image.');
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={snack.name}>
       {error && <div className="alert alert-danger">{error}</div>}
       {successMsg && <div className="alert alert-success">{successMsg}</div>}
+
+      {/* Snack Image / Placeholder Header */}
+      <div className="snack-detail-image-container">
+        {snack.imageUrl && !imageError ? (
+          <img
+            src={snack.imageUrl}
+            alt={snack.name}
+            className="snack-detail-image"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="snack-image-placeholder">
+            <span className="snack-placeholder-icon" style={{ fontSize: '3.5rem' }}>
+              {getCategoryEmoji(snack.category)}
+            </span>
+            <span style={{ fontSize: '0.85rem' }}>No photo uploaded</span>
+          </div>
+        )}
+      </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
         <CategoryBadge category={snack.category} />
@@ -170,6 +310,77 @@ export const SnackDetailModal: React.FC<SnackDetailModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Admin Image Management */}
+      {isAdmin && (
+        <div className="image-management-section">
+          <div className="image-management-header">
+            <h4 className="image-management-title">Image Management</h4>
+            {snack.imageUrl && (
+              <button
+                type="button"
+                className="btn btn-danger btn-sm"
+                onClick={handleDeleteImage}
+                disabled={imageLoading}
+              >
+                {imageLoading ? 'Removing...' : 'Remove Image'}
+              </button>
+            )}
+          </div>
+
+          {imageOperationError && (
+            <div className="alert alert-danger" style={{ padding: '0.5rem 0.75rem', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+              {imageOperationError}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileChange}
+              disabled={imageLoading}
+              className="form-input"
+              style={{ fontSize: '0.85rem' }}
+            />
+            <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+              Formats: JPEG, PNG, WebP. Maximum size: 5 MB.
+            </small>
+
+            {previewUrl && selectedFile && (
+              <div className="image-upload-preview">
+                <img src={previewUrl} alt="Upload preview" className="image-upload-preview-img" />
+                <div className="image-upload-preview-info">
+                  <div className="image-upload-preview-name">{selectedFile.name}</div>
+                  <div className="image-upload-preview-size">{formatFileSize(selectedFile.size)}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={handleUploadImage}
+                    disabled={imageLoading}
+                  >
+                    {imageLoading ? 'Uploading...' : snack.imageUrl ? 'Replace' : 'Upload'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    disabled={imageLoading}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Admin Actions */}
       {isAdmin && (

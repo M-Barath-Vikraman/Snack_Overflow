@@ -54,6 +54,13 @@ async function main() {
     process.exit(actCode);
   }
 
+  console.log('\n>>> RUNNING PHASE 10 SNACK IMAGE STORAGE TEST SUITE...\n');
+  const imgCode = await runScript('src/tests/imageTestSuite.ts');
+  if (imgCode !== 0) {
+    console.error('\n❌ Snack Image Storage test suite failed with exit code', imgCode);
+    process.exit(imgCode);
+  }
+
   console.log('\n================================================================');
   console.log('       ALL SUITES (AUTH + CORE APIS) COMPLETED SUCCESSFULLY!     ');
   console.log('================================================================');

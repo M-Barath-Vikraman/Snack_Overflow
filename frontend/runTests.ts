@@ -48,6 +48,12 @@ async function main() {
     process.exit(code4);
   }
 
+  console.log('\n>>> 5. RUNNING FRONTEND SNACK IMAGE STORAGE TESTS...\n');
+  const code5 = await runScript('testFrontendImage.ts');
+  if (code5 !== 0) {
+    process.exit(code5);
+  }
+
   console.log('\n================================================================');
   console.log('       ALL FRONTEND TESTS COMPLETED SUCCESSFULLY!                ');
   console.log('================================================================');

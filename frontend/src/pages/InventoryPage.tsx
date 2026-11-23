@@ -205,13 +205,8 @@ export const InventoryPage: React.FC<InventoryPageProps> = () => {
           s.id === updated.id
             ? {
                 ...s,
-                name: updated.name,
-                category: updated.category,
-                quantity: updated.quantity,
-                lowStockThreshold: updated.lowStockThreshold,
-                status: updated.status,
+                ...updated,
                 voteCount: updated.voteCount !== undefined ? updated.voteCount : s.voteCount,
-                updatedAt: updated.updatedAt,
               }
             : s
         )

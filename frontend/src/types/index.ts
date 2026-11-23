@@ -22,6 +22,8 @@ export interface Snack {
   quantity: number;
   lowStockThreshold: number;
   status: SnackStatusType;
+  imageUrl?: string | null;
+  imagePath?: string | null;
   voteCount?: number;
   hasUserVoted?: boolean;
   createdAt?: string;

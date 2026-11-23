@@ -11,6 +11,7 @@ A modern, full-stack snack management system designed for team offices and colla
 | **Database** | PostgreSQL (hosted on Railway) |
 | **ORM** | Prisma 5.22.0 |
 | **Authentication** | JWT (jsonwebtoken) + bcrypt |
+| **Storage & Uploads** | Supabase Storage (`@supabase/supabase-js`), Multer |
 | **Validation** | Zod |
 | **Real-time** | WebSockets (`ws`) |
 | **Containerization (Future)** | Docker |
@@ -49,6 +50,7 @@ Snack Overflow utilizes two completely separate Railway PostgreSQL database inst
 - [x] **Phase 8 — GitHub Actions CI/CD & GHCR** (Completed & Verified with Automated Pipeline & Image Publishing)
 - [x] **Dynamic Cloud Proxy & Runtime Configuration** (Frontend Nginx reverse proxy dynamically driven by `BACKEND_URL` for standalone Railway services)
 - [x] **Configurable CORS & WebSocket Origin Security** (Dynamic `FRONTEND_ORIGIN` validation, strict non-wildcard policy, and synchronized HTTP + WebSocket protection)
+- [x] **Phase 10 — Snack Image Upload Using Supabase Storage** (Completed & Verified with 45 automated tests: magic bytes, 5MB limit, replacement, and deletion cleanup)
 - [ ] **Phase 9 — Railway Production Deployment** (Pending)
 
 ---
@@ -78,7 +80,9 @@ Snack Overflow utilizes two completely separate Railway PostgreSQL database inst
 | `GET` | `/api/snacks/:id` | Public / Optional Auth | Single snack details, derived status, and vote status |
 | `POST` | `/api/snacks` | **Admin Only** | Create a new snack item |
 | `PATCH` | `/api/snacks/:id` | **Admin Only** | Update permitted snack fields |
-| `DELETE` | `/api/snacks/:id` | **Admin Only** | Delete snack (restricted if historical activity exists) |
+| `POST` | `/api/snacks/:id/image` | **Admin Only** | Upload or replace snack image (JPEG/PNG/WebP, <= 5 MB, magic byte validation) |
+| `DELETE` | `/api/snacks/:id/image` | **Admin Only** | Remove snack image from storage and clear database URL |
+| `DELETE` | `/api/snacks/:id` | **Admin Only** | Delete snack (restricted if historical activity exists; cleans up storage image) |
 | `POST` | `/api/snacks/:id/consume` | **Authenticated** | Atomic stock consumption with `Idempotency-Key` support |
 | `POST` | `/api/snacks/:id/restock` | **Admin Only** | Atomic inventory restocking |
 | `POST` | `/api/snacks/:id/vote` | **Authenticated** | Vote for a snack (one vote per user) |

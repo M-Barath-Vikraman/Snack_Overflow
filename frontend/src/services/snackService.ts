@@ -116,6 +116,16 @@ export const snackService = {
       `/snacks/${encodeURIComponent(id)}/vote`
     );
   },
+
+  async uploadImage(id: string, file: File): Promise<ApiResponse<Snack>> {
+    const formData = new FormData();
+    formData.append('image', file);
+    return apiClient.postFormData<Snack>(`/snacks/${encodeURIComponent(id)}/image`, formData);
+  },
+
+  async deleteImage(id: string): Promise<ApiResponse<Snack>> {
+    return apiClient.delete<Snack>(`/snacks/${encodeURIComponent(id)}/image`);
+  },
 };
 
 export default snackService;

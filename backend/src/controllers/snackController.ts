@@ -178,6 +178,50 @@ export class SnackController {
       next(error);
     }
   }
+
+  /**
+   * POST /api/snacks/:id/image
+   * Admin-only: Upload or replace image for a snack.
+   */
+  public async uploadImage(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.file) {
+        throw new AppError(
+          "Image file is required under form-data field 'image'.",
+          400,
+          'MISSING_IMAGE_FILE'
+        );
+      }
+
+      const snackId = req.params.id;
+      const currentUserId = req.user?.userId;
+      const updatedSnack = await snackService.uploadSnackImage(
+        snackId,
+        req.file.buffer,
+        currentUserId
+      );
+
+      sendSuccess(res, updatedSnack, 'Snack image uploaded successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * DELETE /api/snacks/:id/image
+   * Admin-only: Remove image for a snack.
+   */
+  public async deleteImage(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const snackId = req.params.id;
+      const currentUserId = req.user?.userId;
+      const updatedSnack = await snackService.removeSnackImage(snackId, currentUserId);
+
+      sendSuccess(res, updatedSnack, 'Snack image removed successfully', 200);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const snackController = new SnackController();

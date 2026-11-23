@@ -13,6 +13,9 @@ export interface AppConfig {
   frontendOrigin: string;
   frontendUrl: string;
   isProduction: boolean;
+  supabaseUrl: string;
+  supabaseSecretKey: string;
+  supabaseStorageBucket: string;
 }
 
 const resolvedFrontendOrigin =
@@ -27,6 +30,9 @@ export const config: AppConfig = {
   frontendOrigin: resolvedFrontendOrigin,
   frontendUrl: resolvedFrontendOrigin,
   isProduction: (process.env.NODE_ENV || 'development') === 'production',
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseSecretKey: process.env.SUPABASE_SECRET_KEY || '',
+  supabaseStorageBucket: process.env.SUPABASE_STORAGE_BUCKET || 'snack-images',
 };
 
 export function validateConfig(): void {

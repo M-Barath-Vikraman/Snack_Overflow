@@ -48,6 +48,11 @@ FRONTEND_ORIGIN="http://localhost:5173"
 
 # Legacy fallback for CORS (backward compatible)
 FRONTEND_URL="http://localhost:5173"
+
+# Supabase Storage Configuration (Phase 10)
+SUPABASE_URL="https://your-project.supabase.co"
+SUPABASE_SECRET_KEY="your-supabase-service-role-secret"
+SUPABASE_STORAGE_BUCKET="snack-images"
 ```
 
 ### Variable Details:
@@ -60,6 +65,9 @@ FRONTEND_URL="http://localhost:5173"
 - **`PORT`**: HTTP and WebSocket listen port (defaults to 3000).
 - **`FRONTEND_ORIGIN`**: The exact origin URL(s) allowed for Cross-Origin Resource Sharing (CORS) and WebSocket handshakes (`verifyClient`). Supports single origin or comma-separated list. Normalizes trailing slashes and rejects wildcards (`*`) to ensure security.
 - **`FRONTEND_URL`**: Backward-compatible fallback for `FRONTEND_ORIGIN`.
+- **`SUPABASE_URL`**: Project URL from Supabase project settings (`https://<project-id>.supabase.co`).
+- **`SUPABASE_SECRET_KEY`**: Supabase service role secret key. Strictly kept on the backend service, never leaked to frontend client code or API responses.
+- **`SUPABASE_STORAGE_BUCKET`**: Target public storage bucket for snack image uploads (`snack-images`).
 
 ---
 

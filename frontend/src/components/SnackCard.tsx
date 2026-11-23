@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Snack } from '../types';
 import StatusBadge from './StatusBadge';
 import CategoryBadge from './CategoryBadge';
@@ -12,6 +12,21 @@ interface SnackCardProps {
   onRestockClick?: (e: React.MouseEvent, snack: Snack) => void;
 }
 
+const getCategoryEmoji = (category: string) => {
+  switch (category) {
+    case 'SWEET':
+      return '🍬';
+    case 'SAVOURY':
+      return '🥨';
+    case 'DRINK':
+      return '🥤';
+    case 'HEALTHY_ISH':
+      return '🥗';
+    default:
+      return '🍿';
+  }
+};
+
 export const SnackCard: React.FC<SnackCardProps> = ({
   snack,
   onSelect,
@@ -20,6 +35,12 @@ export const SnackCard: React.FC<SnackCardProps> = ({
   isAdmin,
   onRestockClick,
 }) => {
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [snack.imageUrl]);
+
   // Compute stock fill percentage based on quantity relative to lowStockThreshold * 2 (as benchmark)
   const maxBenchmark = Math.max(snack.lowStockThreshold * 2, 10);
   const percentage = Math.min(Math.round((snack.quantity / maxBenchmark) * 100), 100);
@@ -32,6 +53,24 @@ export const SnackCard: React.FC<SnackCardProps> = ({
 
   return (
     <div className="snack-card" onClick={() => onSelect(snack)} style={{ cursor: 'pointer' }}>
+      <div className="snack-card-image-container">
+        {snack.imageUrl && !imageError ? (
+          <img
+            src={snack.imageUrl}
+            alt={snack.name}
+            className="snack-card-image"
+            loading="lazy"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="snack-image-placeholder">
+            <span className="snack-placeholder-icon" role="img" aria-label={snack.category}>
+              {getCategoryEmoji(snack.category)}
+            </span>
+          </div>
+        )}
+      </div>
+
       <div className="snack-card-header">
         <h4 className="snack-name">{snack.name}</h4>
         <CategoryBadge category={snack.category} />

@@ -20,6 +20,12 @@ A single shared Railway PostgreSQL instance powers both local development and fu
 - **Status**: ✅ **APPLIED AND VERIFIED**
 - **Command Executed**: `npx prisma migrate deploy`
 
+- **Phase 10 Migration**: `20261123000000_add_snack_image_fields`
+- **Execution Date**: Mon Nov 23 2026
+- **Status**: ✅ **APPLIED AND VERIFIED**
+- **Command Executed**: `npx prisma migrate deploy`
+- **Fields Added**: `imageUrl VARCHAR(1000)` (nullable), `imagePath VARCHAR(1000)` (nullable) on `Snack` table.
+
 ---
 
 ## 3. Verified Schema & Database Constraints

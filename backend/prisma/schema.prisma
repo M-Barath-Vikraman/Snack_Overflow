@@ -52,6 +52,8 @@ model Snack {
   category          SnackCategory
   quantity          Int           @default(0)
   lowStockThreshold Int           @default(5)
+  imageUrl          String?
+  imagePath         String?
   votes             Vote[]
   activities        Activity[]
   createdAt         DateTime      @default(now())
